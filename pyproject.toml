@@ -17,6 +17,9 @@ dependencies = [
     "weave",
 ]
 
+[tool.setuptools]
+packages = ["programmer"]
+
 [project.urls]
 Homepage = "https://github.com/wandb/programmer"
 
