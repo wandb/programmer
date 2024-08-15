@@ -4,6 +4,8 @@ programmer is a command-line based AI programmer, that will help you get stuff d
 
 programmer has direct access to your machine, it can run commands, and read and write files, without safety checks. You have been warned!
 
+![Demo](./assets/programmer-demo-1080.gif)
+
 ## Quickstart
 
 ```
