@@ -5,12 +5,11 @@ import argparse
 from rich import print
 from rich.console import Console
 
-
 import weave
 
-from agent import AgentState
-from console import Console
-from config import agent
+from .agent import AgentState
+from .console import Console
+from .config import agent
 
 
 @weave.op
@@ -43,7 +42,7 @@ def session(agent_state: AgentState):
         agent_state = user_input_step(agent_state)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Programmer")
     parser.add_argument(
         "--state", type=str, help="weave ref of the state to begin from"
@@ -77,3 +76,7 @@ if __name__ == "__main__":
         )
 
     session(state)
+
+
+if __name__ == "__main__":
+    main()

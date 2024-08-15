@@ -4,8 +4,8 @@ programmer always has access to a shell and local filesystem in perform tasks, v
 programmer writes code directly to files instead of to the terminal, unless it is showing snippets for discussion.
 """
 
-from tools import list_files, write_to_file, read_from_file, run_command, view_image
-from agent import Agent
+from .tools import list_files, write_to_file, read_from_file, run_command, view_image
+from .agent import Agent
 
 agent = Agent(
     model_name="gpt-4o-2024-08-06",

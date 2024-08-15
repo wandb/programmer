@@ -4,7 +4,7 @@ from typing import Callable, get_type_hints
 
 from openai.types.chat import ChatCompletionMessageToolCall, ChatCompletionToolParam
 
-from console import Console
+from .console import Console
 
 
 def generate_json_schema(func: Callable) -> dict:

@@ -9,8 +9,8 @@ from openai.types.chat import (
 import weave
 from weave.flow.chat_util import OpenAIStream
 
-from console import Console
-from tool_calling import chat_call_tool_params, perform_tool_calls
+from .console import Console
+from .tool_calling import chat_call_tool_params, perform_tool_calls
 
 
 class AgentState(weave.Object):
