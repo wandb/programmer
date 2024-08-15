@@ -2,3 +2,6 @@ weave.db
 __pycache__
 dist/
 programmer.egg-info
+
+# PyPI uploads
+.pypirc
