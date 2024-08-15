@@ -11,6 +11,13 @@ pip install programmer
 programmer 
 ```
 
+## Examples
+
+- "What processes are listening on port 4512?" ... "ok, please kill them"
+- "What's in frog.jpg?"
+- "Write a function to determine if a tic-tac-toe game is won in a file called tictactoe.py. also write unit tests, and iterate until they pass."
+
+
 ## Usage
 
 Just
@@ -29,13 +36,6 @@ To resume from an earlier state:
 programmer --state <state_ref>
 ```
 
-## Examples
-
-- "What processes are listening on port 4512?" ... "ok, please kill them"
-- "What's in frog.jpg?"
-- "Write a function to determine if a tic-tac-toe game is won in a file called tictactoe.py. also write unit tests, and iterate until they pass."
-
-But you can do a lot more than that!
 
 ## Improving programmer
 
