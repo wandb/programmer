@@ -1,0 +1,24 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "programmer"
+version = "0.1.0"
+description = "A Python package for managing programming tasks."
+authors = [{name = "Shawn Lewis", email = "shawn@wandb.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "weave",
+]
+
+[project.urls]
+Homepage = "https://github.com/wandb/programmer"
+
+[project.entry-points."console_scripts"]
+programmer = "programmer.programmer:main"
