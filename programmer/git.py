@@ -1,8 +1,6 @@
 from git import Repo, InvalidGitRepositoryError, GitCommandError
-import shutil
 import os
-import tempfile
-from typing import List, Union, Optional
+from typing import Optional
 
 
 class GitRepo:
@@ -37,37 +35,6 @@ class GitRepo:
             # Branch already exists, so just check it out
             self.repo.git.checkout(branch_name)
 
-    def add_path(self, path: str) -> None:
-        """
-        Add a single path to the Git index if it's within the repository.
-
-        Args:
-            path: The path to add to the Git index.
-        """
-        repo_root = self.repo.working_tree_dir
-        abs_path = os.path.abspath(path)
-
-        if abs_path.startswith(repo_root):
-            self.repo.index.add([abs_path])
-
-    def commit(self, message: str) -> str:
-        """
-        Commit the current changes and return the commit SHA.
-
-        Args:
-            message: The commit message.
-
-        Returns:
-            The SHA of the new commit if changes were committed,
-            or the current HEAD's SHA if no changes were made.
-
-        Raises:
-            GitCommandError: If there are issues with Git operations.
-        """
-        if self.repo.is_dirty():
-            self.repo.index.commit(message)
-        return self.repo.head.commit.hexsha
-
     def get_current_head(self) -> str:
         """
         Get the current HEAD of the repository, which is either the branch name or the commit SHA.
@@ -80,44 +47,58 @@ class GitRepo:
         else:
             return str(self.repo.active_branch.name)
 
-    def copy_paths_from_ref(self, paths: List[str], ref: str) -> None:
+    def copy_all_from_ref(self, ref: str) -> None:
         """
-        Copy specified files from a git reference to the current working state.
+        Copy all files from a git reference to the current working state.
 
         Args:
-            paths: List of file paths to copy.
             ref: The git reference (branch, tag, or commit SHA) to copy from.
 
         Raises:
             GitCommandError: If there are issues with Git operations.
-            FileNotFoundError: If any of the specified paths do not exist in the given ref.
         """
-        for path in paths:
-            rel_path = os.path.relpath(path, self.repo.working_tree_dir)
-            if rel_path.startswith(".."):
-                continue
+        ls_tree_output = self.repo.git.ls_tree("-r", ref)
 
-            file_content = self.repo.git.show(f"{ref}:{rel_path}")
+        for line in ls_tree_output.splitlines():
+            # Each line is in the format: <mode> <type> <object> <file>
+            _, obj_type, obj_hash, file_path = line.split(None, 3)
 
-            with open(os.path.join(self.repo.working_tree_dir, path), "w") as f:
-                f.write(file_content)
+            if obj_type == "blob":
+                file_content = self.repo.git.show(f"{ref}:{file_path}")
+                full_path = os.path.join(str(self.repo.working_tree_dir), file_path)
 
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-def get_git_repo() -> Optional[GitRepo]:
-    """
-    Get a GitRepo instance for the current directory or its parent directories.
+                with open(full_path, "w") as f:
+                    f.write(file_content)
+                    # For some reason this was clobbering newlines, so
+                    # add one. But if the original didn't have one, this
+                    # will cause a diff.
+                    if not file_content.endswith("\n"):
+                        f.write("\n")
 
-    Returns:
-        GitRepo instance if in a Git repository, None otherwise.
-    """
-    return GitRepo.from_current_dir()
+    def add_all_and_commit(self, message: str) -> str:
+        """
+        Add all files (including untracked ones) and commit them.
 
+        Args:
+            message: The commit message.
 
-def is_git_repo() -> bool:
-    """
-    Check if the current directory is within a Git repository.
+        Returns:
+            The SHA of the new commit if changes were committed,
+            or the current HEAD's SHA if no changes were made.
 
-    Returns:
-        True if the current directory is within a Git repository, False otherwise.
-    """
-    return get_git_repo() is not None
+        Raises:
+            GitCommandError: If there are issues with Git operations.
+        """
+        # Add all files, including untracked ones
+        self.repo.git.add(A=True)
+
+        # Check if there are changes to commit
+        if self.repo.is_dirty(untracked_files=True):
+            # Commit the changes
+            commit = self.repo.index.commit(message)
+            return commit.hexsha
+        else:
+            # If no changes, return the current HEAD's SHA
+            return self.repo.head.commit.hexsha

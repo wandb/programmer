@@ -4,9 +4,6 @@ import os
 import subprocess
 import weave
 
-from .edits import get_edit_context
-from .git import GitRepo
-
 LENGTH_LIMIT = 10000
 
 
@@ -83,12 +80,6 @@ def write_to_file(path: str, content: str) -> str:
     """
     with open(path, "w") as f:
         f.write(content)
-    edit_context = get_edit_context()
-    if edit_context:
-        edit_context.add_edited_file(path)
-    repo = GitRepo.from_current_dir()
-    if repo:
-        repo.add_path(path)
     return "File written successfully."
 
 

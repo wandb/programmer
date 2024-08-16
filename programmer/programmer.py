@@ -10,10 +10,8 @@ import weave
 from .agent import AgentState
 from .console import Console
 from .config import agent
-from .edits import track_edits
 
-# from .git import is_git_repo, get_current_head, checkout_new_branch
-from .git import GitRepo
+from .environment import init_environment, set_environment
 
 
 @weave.op
@@ -42,24 +40,18 @@ def user_input_step(state: AgentState) -> AgentState:
 @weave.op
 def session(agent_state: AgentState):
     call = weave.get_current_call()
-    git_repo = GitRepo.from_current_dir()
-    if git_repo:
-        orig_git_ref = git_repo.get_current_head()
-        programmer_branch = f"programmer-{call.id}"
-        print("programmer_branch:", programmer_branch)
-        git_repo.checkout(programmer_branch)
+    if call is None or call.id is None:
+        raise ValueError("unexpected Weave state")
+    environment = init_environment()
+    environment.start_session(call.id)
 
-    with track_edits() as edit_context:
+    with set_environment(environment):
         try:
             while True:
                 agent_state = agent.run(agent_state)
                 agent_state = user_input_step(agent_state)
         finally:
-            if git_repo:
-                git_repo.checkout(orig_git_ref)
-                git_repo.copy_paths_from_ref(
-                    edit_context.edited_files, programmer_branch
-                )
+            environment.finish_session()
 
 
 def main():

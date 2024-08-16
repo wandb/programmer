@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from pydantic import Field
 from openai import OpenAI
 from openai._types import NotGiven
@@ -11,7 +11,16 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
-from .git import GitRepo
+from .environment import get_current_environment
+
+
+def get_last_assistant_content(history: list[Any]) -> Optional[str]:
+    for i in range(len(history) - 1, -1, -1):
+        if history[i]["role"] == "assistant" and "content" in history[i]:
+            return history[i]["content"]
+        elif history[i]["role"] == "user":
+            break
+    return None
 
 
 class AgentState(weave.Object):
@@ -90,14 +99,12 @@ class Agent(weave.Object):
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
                 return state
             state = self.step(state)
-            repo = GitRepo.from_current_dir()
-            if repo:
-                # Commit message is most recent assistant message
+
+            last_assistant_message = get_last_assistant_content(state.history)
+            if last_assistant_message:
+                message = last_assistant_message
+            else:
                 message = "commit"
-                for i in range(len(state.history) - 1, -1, -1):
-                    if state.history[i]["role"] == "assistant":
-                        message = state.history[i]["content"]
-                        break
-                    elif state.history[i]["role"] == "user":
-                        break
-                repo.commit(message)
+
+            environemnt = get_current_environment()
+            environemnt.make_snapshot(message)
