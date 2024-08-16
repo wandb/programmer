@@ -11,6 +11,7 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
+from .git import GitRepo
 
 
 class AgentState(weave.Object):
@@ -89,3 +90,14 @@ class Agent(weave.Object):
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
                 return state
             state = self.step(state)
+            repo = GitRepo.from_current_dir()
+            if repo:
+                # Commit message is most recent assistant message
+                message = "commit"
+                for i in range(len(state.history) - 1, -1, -1):
+                    if state.history[i]["role"] == "assistant":
+                        message = state.history[i]["content"]
+                        break
+                    elif state.history[i]["role"] == "user":
+                        break
+                repo.commit(message)
