@@ -11,7 +11,7 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
-from .environment import get_current_environment
+from .environment import get_current_environment, EnvironmentSnapshotKey
 
 
 def get_last_assistant_content(history: list[Any]) -> Optional[str]:
@@ -26,6 +26,7 @@ def get_last_assistant_content(history: list[Any]) -> Optional[str]:
 class AgentState(weave.Object):
     # The chat message history.
     history: list[Any] = Field(default_factory=list)
+    env_snapshot_key: Optional[EnvironmentSnapshotKey] = None
 
 
 class Agent(weave.Object):
@@ -90,7 +91,16 @@ class Agent(weave.Object):
                 perform_tool_calls(self.tools, response_message.tool_calls)
             )
 
-        return AgentState(history=state.history + new_messages)
+        last_assistant_message = get_last_assistant_content(state.history)
+        if last_assistant_message:
+            message = last_assistant_message
+        else:
+            message = "commit"
+
+        environment = get_current_environment()
+        snapshot_key = environment.make_snapshot(message)
+
+        return AgentState(history=state.history + new_messages, env_snapshot_key=snapshot_key)
 
     @weave.op()
     def run(self, state: AgentState):
@@ -100,11 +110,3 @@ class Agent(weave.Object):
                 return state
             state = self.step(state)
 
-            last_assistant_message = get_last_assistant_content(state.history)
-            if last_assistant_message:
-                message = last_assistant_message
-            else:
-                message = "commit"
-
-            environemnt = get_current_environment()
-            environemnt.make_snapshot(message)

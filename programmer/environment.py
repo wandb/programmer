@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Protocol
 from contextvars import ContextVar
 from contextlib import contextmanager
@@ -6,18 +7,24 @@ from contextlib import contextmanager
 from .git import GitRepo
 
 
+@dataclass
+class EnvironmentSnapshotKey:
+    env_id: str
+    snapshot_info: dict
+
 class Environment(Protocol):
     def start_session(self, session_id: str):
-        pass
+        ...
 
     def finish_session(self):
-        pass
+        ...
 
-    def make_snapshot(self, message: str):
-        pass
+    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        ...
 
-    def restore_from_snapshot_ref(self, ref: str):
-        pass
+    @classmethod
+    def restore_from_snapshot_ref(cls, ref: EnvironmentSnapshotKey):
+        ...
 
 
 @contextmanager
@@ -51,10 +58,16 @@ class GitEnvironment(Environment):
         self.repo.checkout(self.original_git_ref)
         self.repo.copy_all_from_ref(self.programmer_branch)
 
-    def make_snapshot(self, message: str):
-        return self.repo.add_all_and_commit(message)
+    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        commit_hash = self.repo.add_all_and_commit(message)
+        return EnvironmentSnapshotKey(
+            'git', {
+                'origin': self.repo.get_origin_url(),
+                'commit': commit_hash
+            })
 
-    def restore_from_snapshot_ref(self, ref: str):
+    @classmethod
+    def restore_from_snapshot_ref(cls, ref: EnvironmentSnapshotKey):
         raise NotImplementedError()
 
 
@@ -68,7 +81,8 @@ class NoopEnvironment(Environment):
     def make_snapshot(self, message: str):
         pass
 
-    def restore_from_snapshot_ref(self, ref: str):
+    @classmethod
+    def restore_from_snapshot_ref(cls, ref: str):
         pass
 
 

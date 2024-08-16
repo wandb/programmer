@@ -21,6 +21,20 @@ class GitRepo:
         except InvalidGitRepositoryError:
             return None
 
+    def get_origin_url(self) -> Optional[str]:
+        """
+        Get the remote URL (e.g., GitHub URL) for this repository.
+
+        Returns:
+            The remote URL as a string if it exists, None otherwise.
+        """
+        try:
+            remote_url = self.repo.remotes.origin.url
+            return remote_url if remote_url else None
+        except AttributeError:
+            # No remote named 'origin' exists
+            return None
+
     def checkout(self, branch_name: str) -> None:
         """
         Create and checkout a new Git branch with the given name.
