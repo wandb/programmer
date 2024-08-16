@@ -28,11 +28,13 @@ class Environment(Protocol):
 
 
 @contextmanager
-def set_environment(env: Environment):
+def environment_session(env: Environment, session_id: str):
+    env.start_session(session_id)
     token = environment_context.set(env)
     try:
         yield env
     finally:
+        env.finish_session()
         environment_context.reset(token)
 
 

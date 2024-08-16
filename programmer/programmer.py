@@ -11,7 +11,7 @@ from .agent import AgentState
 from .console import Console
 from .config import agent
 
-from .environment import init_environment, set_environment, restore_environment
+from .environment import init_environment, environment_session, restore_environment
 
 
 @weave.op
@@ -43,15 +43,11 @@ def session(agent_state: AgentState):
     if call is None or call.id is None:
         raise ValueError("unexpected Weave state")
     environment = init_environment()
-    environment.start_session(call.id)
 
-    with set_environment(environment):
-        try:
-            while True:
-                agent_state = agent.run(agent_state)
-                agent_state = user_input_step(agent_state)
-        finally:
-            environment.finish_session()
+    with environment_session(environment, call.id):
+        while True:
+            agent_state = agent.run(agent_state)
+            agent_state = user_input_step(agent_state)
 
 
 def main():
