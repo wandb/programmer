@@ -11,7 +11,7 @@ from .agent import AgentState
 from .console import Console
 from .config import agent
 
-from .environment import init_environment, set_environment
+from .environment import init_environment, set_environment, restore_environment
 
 
 @weave.op
@@ -71,6 +71,8 @@ def main():
     args, remaining = parser.parse_known_args()
     if args.state:
         state = weave.ref(args.state).get()
+        if state.env_snapshot_key:
+            environment = restore_environment(state.env_snapshot_key)
     else:
         if len(sys.argv) < 2:
             initial_prompt = input("Initial prompt: ")

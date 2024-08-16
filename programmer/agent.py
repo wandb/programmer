@@ -91,7 +91,8 @@ class Agent(weave.Object):
                 perform_tool_calls(self.tools, response_message.tool_calls)
             )
 
-        last_assistant_message = get_last_assistant_content(state.history)
+        new_history = state.history + new_messages
+        last_assistant_message = get_last_assistant_content(new_history)
         if last_assistant_message:
             message = last_assistant_message
         else:
@@ -100,7 +101,7 @@ class Agent(weave.Object):
         environment = get_current_environment()
         snapshot_key = environment.make_snapshot(message)
 
-        return AgentState(history=state.history + new_messages, env_snapshot_key=snapshot_key)
+        return AgentState(history=new_history, env_snapshot_key=snapshot_key)
 
     @weave.op()
     def run(self, state: AgentState):

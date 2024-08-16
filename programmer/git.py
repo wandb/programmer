@@ -37,17 +37,17 @@ class GitRepo:
 
     def checkout(self, branch_name: str) -> None:
         """
-        Create and checkout a new Git branch with the given name.
-        If the branch already exists, it will be checked out.
+        Checkout an existing Git branch or create and checkout a new one if it doesn't exist.
 
         Args:
-            branch_name: Name of the branch to create and checkout.
+            branch_name: Name of the branch to checkout or create.
         """
         try:
-            self.repo.git.checkout(b=branch_name)
-        except GitCommandError:
-            # Branch already exists, so just check it out
+            # Try to checkout the branch first
             self.repo.git.checkout(branch_name)
+        except GitCommandError:
+            # Branch doesn't exist, so create and checkout
+            self.repo.git.checkout(b=branch_name)
 
     def get_current_head(self) -> str:
         """

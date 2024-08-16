@@ -23,7 +23,7 @@ class Environment(Protocol):
         ...
 
     @classmethod
-    def restore_from_snapshot_ref(cls, ref: EnvironmentSnapshotKey):
+    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
         ...
 
 
@@ -67,8 +67,17 @@ class GitEnvironment(Environment):
             })
 
     @classmethod
-    def restore_from_snapshot_ref(cls, ref: EnvironmentSnapshotKey):
-        raise NotImplementedError()
+    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
+        origin = ref.snapshot_info['origin']
+        commit = ref.snapshot_info['commit']
+        repo = GitRepo.from_current_dir()
+        if not repo:
+            raise ValueError("No git repo found")
+        if origin != repo.get_origin_url():
+            raise ValueError("Origin URL mismatch")
+        repo.checkout(commit)   
+        print("Checked out commit", commit)
+        return cls(repo)
 
 
 class NoopEnvironment(Environment):
@@ -82,7 +91,7 @@ class NoopEnvironment(Environment):
         pass
 
     @classmethod
-    def restore_from_snapshot_ref(cls, ref: str):
+    def restore_from_snapshot_key(cls, ref: str):
         pass
 
 
@@ -92,6 +101,10 @@ def init_environment() -> Environment:
         return GitEnvironment(git_repo)
     return NoopEnvironment()
 
+def restore_environment(snapshot_key: EnvironmentSnapshotKey) -> Environment:
+    if snapshot_key.env_id == 'git':
+        return GitEnvironment.restore_from_snapshot_key(snapshot_key)
+    return NoopEnvironment()
 
 environment_context: ContextVar[Environment] = ContextVar(
     "environment", default=NoopEnvironment()
