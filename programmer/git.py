@@ -35,19 +35,11 @@ class GitRepo:
             # No remote named 'origin' exists
             return None
 
-    def checkout(self, branch_name: str) -> None:
-        """
-        Checkout an existing Git branch or create and checkout a new one if it doesn't exist.
+    def checkout_existing(self, ref: str) -> None:
+        self.repo.git.checkout(ref)
 
-        Args:
-            branch_name: Name of the branch to checkout or create.
-        """
-        try:
-            # Try to checkout the branch first
-            self.repo.git.checkout(branch_name)
-        except GitCommandError:
-            # Branch doesn't exist, so create and checkout
-            self.repo.git.checkout(b=branch_name)
+    def checkout_new(self, branch_name: str) -> None:
+        self.repo.git.checkout(b=branch_name)
 
     def get_current_head(self) -> str:
         """

@@ -12,19 +12,16 @@ class EnvironmentSnapshotKey:
     env_id: str
     snapshot_info: dict
 
+
 class Environment(Protocol):
-    def start_session(self, session_id: str):
-        ...
+    def start_session(self, session_id: str): ...
 
-    def finish_session(self):
-        ...
+    def finish_session(self): ...
 
-    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
-        ...
+    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey: ...
 
     @classmethod
-    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
-        ...
+    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey): ...
 
 
 @contextmanager
@@ -52,32 +49,30 @@ class GitEnvironment(Environment):
         self.original_git_ref = self.repo.get_current_head()
         self.programmer_branch = f"programmer-{session_id}"
         print("programmer_branch:", self.programmer_branch)
-        self.repo.checkout(self.programmer_branch)
+        self.repo.checkout_new(self.programmer_branch)
 
     def finish_session(self):
         if self.original_git_ref is None or self.programmer_branch is None:
             raise ValueError("Session not started")
-        self.repo.checkout(self.original_git_ref)
+        self.repo.checkout_existing(self.original_git_ref)
         self.repo.copy_all_from_ref(self.programmer_branch)
 
     def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
         commit_hash = self.repo.add_all_and_commit(message)
         return EnvironmentSnapshotKey(
-            'git', {
-                'origin': self.repo.get_origin_url(),
-                'commit': commit_hash
-            })
+            "git", {"origin": self.repo.get_origin_url(), "commit": commit_hash}
+        )
 
     @classmethod
     def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
-        origin = ref.snapshot_info['origin']
-        commit = ref.snapshot_info['commit']
+        origin = ref.snapshot_info["origin"]
+        commit = ref.snapshot_info["commit"]
         repo = GitRepo.from_current_dir()
         if not repo:
             raise ValueError("No git repo found")
         if origin != repo.get_origin_url():
             raise ValueError("Origin URL mismatch")
-        repo.checkout(commit)   
+        repo.checkout_existing(commit)
         print("Checked out commit", commit)
         return cls(repo)
 
@@ -103,10 +98,12 @@ def init_environment() -> Environment:
         return GitEnvironment(git_repo)
     return NoopEnvironment()
 
+
 def restore_environment(snapshot_key: EnvironmentSnapshotKey) -> Environment:
-    if snapshot_key.env_id == 'git':
+    if snapshot_key.env_id == "git":
         return GitEnvironment.restore_from_snapshot_key(snapshot_key)
     return NoopEnvironment()
+
 
 environment_context: ContextVar[Environment] = ContextVar(
     "environment", default=NoopEnvironment()
