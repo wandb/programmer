@@ -7,6 +7,7 @@ from openai.types.chat import (
 )
 
 import weave
+from weave.trace.vals import WeaveList
 from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
@@ -21,6 +22,14 @@ def get_last_assistant_content(history: list[Any]) -> Optional[str]:
         elif history[i]["role"] == "user":
             break
     return None
+
+
+# Weave bug workaround: adding two WeaveLists can create that cause
+# downstream crashes.
+def weavelist_add(self: WeaveList, other: list) -> WeaveList:
+    if not isinstance(other, list):
+        return NotImplemented
+    return WeaveList(list(self) + other, server=self.server)
 
 
 class AgentState(weave.Object):
@@ -91,7 +100,8 @@ class Agent(weave.Object):
                 perform_tool_calls(self.tools, response_message.tool_calls)
             )
 
-        new_history = state.history + new_messages
+        # new_history = state.history + new_messages
+        new_history = weavelist_add(state.history, new_messages)
         last_assistant_message = get_last_assistant_content(new_history)
         if last_assistant_message:
             message = last_assistant_message
@@ -110,4 +120,3 @@ class Agent(weave.Object):
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
                 return state
             state = self.step(state)
-
