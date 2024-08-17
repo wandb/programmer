@@ -1,111 +1,111 @@
 from git import Repo, InvalidGitRepositoryError, GitCommandError
-import shutil
 import os
+from typing import Optional
 import tempfile
-from typing import List, Union
+import shutil
 
 
-def get_current_repo() -> Repo:
-    """
-    Get the current Git repository from the current working directory or its parent directories.
+class GitRepo:
+    def __init__(self, repo: Repo):
+        self.repo = repo
 
-    Returns:
-        The Repo object representing the current Git repository.
+    @classmethod
+    def from_current_dir(cls) -> Optional["GitRepo"]:
+        """
+        Create a GitRepo instance from the current working directory or its parent directories.
 
-    Raises:
-        InvalidGitRepositoryError: If the current directory is not within a Git repository.
-    """
-    try:
-        return Repo(os.getcwd(), search_parent_directories=True)
-    except InvalidGitRepositoryError:
-        raise InvalidGitRepositoryError(
-            "Current directory is not within a Git repository."
-        )
-
-
-def checkout_new_branch(branch_name: str) -> None:
-    """
-    Create and checkout a new Git branch with the given name.
-    This operation will fail if the branch already exists.
-
-    Args:
-        branch_name: Name of the branch to create and checkout.
-
-    Raises:
-        GitCommandError: If the branch already exists.
-    """
-    repo = get_current_repo()
-    git = repo.git
-    # Attempt to create and checkout the new branch
-    git.checkout(b=branch_name)
-
-
-def add_and_commit(paths: List[str], message: str) -> str:
-    """
-    Add changes to the Git index for the specified paths and commit them with a message.
-
-    Args:
-        paths: List of paths to add to the Git index.
-        message: Commit message.
-
-    Returns:
-        The commit ID of the new commit.
-    """
-    repo = get_current_repo()
-    index = repo.index
-    index.add(paths)
-    commit = index.commit(message)
-    return commit.hexsha
-
-
-def get_current_head() -> Union[str, None]:
-    """
-    Get the current HEAD of the repository, which is either the branch name or the commit SHA.
-
-    Returns:
-        The branch name if on a branch, otherwise the commit SHA.
-    """
-    repo = get_current_repo()
-    if repo.head.is_detached:
-        return str(repo.head.commit.hexsha)
-    else:
-        return str(repo.active_branch.name)
-
-
-def copy_files_to_new_branch_or_commit(paths: List[str], new_ref: str) -> None:
-    """
-    Copy specified files from the current branch, switch to a new branch or commit, and
-    copy those files into the new branch or commit.
-
-    Args:
-        paths: List of file paths to copy.
-        new_ref: The name of the new branch to create or the commit SHA to checkout.
-
-    Raises:
-        FileNotFoundError: If any of the specified paths do not exist.
-        GitCommandError: If there are issues with Git operations.
-    """
-    repo = get_current_repo()
-    current_files = {path: os.path.join(repo.working_tree_dir, path) for path in paths}
-
-    # Create a temporary directory to store backups
-    with tempfile.TemporaryDirectory() as temp_dir:
-        backup_files = {
-            path: os.path.join(temp_dir, os.path.basename(path)) for path in paths
-        }
-
-        # Copy files to temporary backup
-        for path in paths:
-            if not os.path.exists(current_files[path]):
-                raise FileNotFoundError(f"{path} does not exist in the current branch.")
-            shutil.copy2(current_files[path], backup_files[path])
-
-        # Checkout the new branch or commit
+        Returns:
+            GitRepo instance if in a Git repository, None otherwise.
+        """
         try:
-            repo.git.checkout(new_ref)
-        except GitCommandError as e:
-            raise e
+            repo = Repo(os.getcwd(), search_parent_directories=True)
+            return cls(repo)
+        except InvalidGitRepositoryError:
+            return None
 
-        # Restore files from backup
-        for path in paths:
-            shutil.copy2(backup_files[path], current_files[path])
+    def get_origin_url(self) -> Optional[str]:
+        """
+        Get the remote URL (e.g., GitHub URL) for this repository.
+
+        Returns:
+            The remote URL as a string if it exists, None otherwise.
+        """
+        try:
+            remote_url = self.repo.remotes.origin.url
+            return remote_url if remote_url else None
+        except AttributeError:
+            # No remote named 'origin' exists
+            return None
+
+    def checkout_existing(self, ref: str) -> None:
+        self.repo.git.checkout(ref)
+
+    def checkout_new(self, branch_name: str) -> None:
+        self.repo.git.checkout(b=branch_name)
+
+    def get_current_head(self) -> str:
+        """
+        Get the current HEAD of the repository, which is either the branch name or the commit SHA.
+
+        Returns:
+            The branch name if on a branch, otherwise the commit SHA.
+        """
+        if self.repo.head.is_detached:
+            return str(self.repo.head.commit.hexsha)
+        else:
+            return str(self.repo.active_branch.name)
+
+    def checkout_and_copy(self, to_ref: str) -> None:
+        current_branch = self.get_current_head()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Get all changed files between current branch and to_ref
+            changed_files = self.repo.git.diff(
+                "--name-only", current_branch, to_ref
+            ).splitlines()
+
+            # Copy changed files to the temp directory
+            for file in changed_files:
+                src_path = os.path.join(self.repo.working_tree_dir, file)
+                dst_path = os.path.join(temp_dir, file)
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                if os.path.exists(src_path):
+                    shutil.copy2(src_path, dst_path)
+
+            # Checkout the target branch
+            self.repo.git.checkout(to_ref)
+
+            # Copy files from temp directory to the working directory
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    src_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(src_path, temp_dir)
+                    dst_path = os.path.join(self.repo.working_tree_dir, rel_path)
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
+
+    def add_all_and_commit(self, message: str) -> str:
+        """
+        Add all files (including untracked ones) and commit them.
+
+        Args:
+            message: The commit message.
+
+        Returns:
+            The SHA of the new commit if changes were committed,
+            or the current HEAD's SHA if no changes were made.
+
+        Raises:
+            GitCommandError: If there are issues with Git operations.
+        """
+        # Add all files, including untracked ones
+        self.repo.git.add(A=True)
+
+        # Check if there are changes to commit
+        if self.repo.is_dirty(untracked_files=True):
+            # Commit the changes
+            commit = self.repo.index.commit(message)
+            return commit.hexsha
+        else:
+            # If no changes, return the current HEAD's SHA
+            return self.repo.head.commit.hexsha

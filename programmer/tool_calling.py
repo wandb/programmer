@@ -87,6 +87,7 @@ def perform_tool_calls(
     for tool_call in tool_calls:
         function_name = tool_call.function.name
         tool = get_tool(tools, function_name)
+        function_args = {}
         function_response = None
         tool_call_s = f"{function_name}({tool_call.function.arguments})"
         Console.tool_call_start(tool_call_s)
