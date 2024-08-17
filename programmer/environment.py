@@ -91,13 +91,6 @@ class NoopEnvironment(Environment):
         pass
 
 
-def init_environment() -> Environment:
-    git_repo = GitRepo.from_current_dir()
-    if git_repo:
-        return GitEnvironment(git_repo)
-    return NoopEnvironment()
-
-
 def restore_environment(snapshot_key: EnvironmentSnapshotKey) -> Environment:
     if snapshot_key.env_id == "git":
         return GitEnvironment.restore_from_snapshot_key(snapshot_key)

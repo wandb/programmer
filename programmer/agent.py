@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from pydantic import Field
 from openai import OpenAI
 from openai._types import NotGiven
@@ -26,7 +26,9 @@ def get_last_assistant_content(history: list[Any]) -> Optional[str]:
 
 # Weave bug workaround: adding two WeaveLists can create that cause
 # downstream crashes.
-def weavelist_add(self: WeaveList, other: list) -> WeaveList:
+def weavelist_add(self: Union[list, WeaveList], other: list) -> Union[list, WeaveList]:
+    if isinstance(self, list):
+        return self + other
     if not isinstance(other, list):
         return NotImplemented
     return WeaveList(list(self) + other, server=self.server)

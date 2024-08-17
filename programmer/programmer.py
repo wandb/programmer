@@ -10,8 +10,15 @@ import weave
 from .agent import AgentState
 from .console import Console
 from .config import agent
+from .environment import (
+    environment_session,
+    restore_environment,
+    GitEnvironment,
+    NoopEnvironment,
+)
+from .settings_manager import SettingsManager
 
-from .environment import init_environment, environment_session, restore_environment
+from .git import GitRepo
 
 
 @weave.op
@@ -40,11 +47,19 @@ def user_input_step(state: AgentState) -> AgentState:
 @weave.op
 def session(agent_state: AgentState):
     call = weave.get_current_call()
-    if call is None or call.id is None:
-        raise ValueError("unexpected Weave state")
-    environment = init_environment()
 
-    with environment_session(environment, call.id):
+    session_id = None
+    if call:
+        session_id = call.id
+
+    git_repo = GitRepo.from_current_dir()
+    git_tracking_enabled = SettingsManager.get_setting("git_tracking") == "on"
+    if git_tracking_enabled and git_repo:
+        env = GitEnvironment(git_repo)
+    else:
+        env = NoopEnvironment()
+
+    with environment_session(env, session_id):
         while True:
             agent_state = agent.run(agent_state)
             agent_state = user_input_step(agent_state)
@@ -52,19 +67,44 @@ def session(agent_state: AgentState):
 
 def main():
     parser = argparse.ArgumentParser(description="Programmer")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Subparser for the settings command
+    settings_parser = subparsers.add_parser("settings", help="Manage settings")
+    settings_parser.add_argument(
+        "action", choices=["get", "set"], help="Action to perform"
+    )
+    settings_parser.add_argument("key", help="The setting key")
+    settings_parser.add_argument("value", nargs="?", help="The value to set")
+
     parser.add_argument(
         "--state", type=str, help="weave ref of the state to begin from"
     )
 
-    curdir = os.path.basename(os.path.abspath(os.curdir))
+    SettingsManager.initialize_settings()
+
+    # Initialize settings
+
+    args = parser.parse_args()
+
+    if args.command == "settings":
+        Console.settings_command(
+            [args.action, args.key, args.value]
+            if args.value
+            else [args.action, args.key]
+        )
+        return
 
     # log to local sqlite db for now
-    # weave.init(f"programmerdev1-{curdir}")
-    weave.init_local_client()
+    logging_mode = SettingsManager.get_setting("weave_logging")
+    if logging_mode == "cloud":
+        curdir = os.path.basename(os.path.abspath(os.curdir))
+        weave.init(f"programmerdev1-{curdir}")
+    elif logging_mode == "local":
+        weave.init_local_client()
 
     Console.welcome()
 
-    args, remaining = parser.parse_known_args()
     if args.state:
         state = weave.ref(args.state).get()
         if state.env_snapshot_key:

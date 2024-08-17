@@ -5,3 +5,4 @@ programmer.egg-info
 
 # PyPI uploads
 .pypirc
+.programmer
