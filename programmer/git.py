@@ -1,6 +1,8 @@
 from git import Repo, InvalidGitRepositoryError, GitCommandError
 import os
 from typing import Optional
+import tempfile
+import shutil
 
 
 class GitRepo:
@@ -53,35 +55,34 @@ class GitRepo:
         else:
             return str(self.repo.active_branch.name)
 
-    def copy_all_from_ref(self, ref: str) -> None:
-        """
-        Copy all files from a git reference to the current working state.
+    def checkout_and_copy(self, to_ref: str) -> None:
+        current_branch = self.get_current_head()
 
-        Args:
-            ref: The git reference (branch, tag, or commit SHA) to copy from.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Get all changed files between current branch and to_ref
+            changed_files = self.repo.git.diff(
+                "--name-only", current_branch, to_ref
+            ).splitlines()
 
-        Raises:
-            GitCommandError: If there are issues with Git operations.
-        """
-        ls_tree_output = self.repo.git.ls_tree("-r", ref)
+            # Copy changed files to the temp directory
+            for file in changed_files:
+                src_path = os.path.join(self.repo.working_tree_dir, file)
+                dst_path = os.path.join(temp_dir, file)
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                if os.path.exists(src_path):
+                    shutil.copy2(src_path, dst_path)
 
-        for line in ls_tree_output.splitlines():
-            # Each line is in the format: <mode> <type> <object> <file>
-            _, obj_type, obj_hash, file_path = line.split(None, 3)
+            # Checkout the target branch
+            self.repo.git.checkout(to_ref)
 
-            if obj_type == "blob":
-                file_content = self.repo.git.show(f"{ref}:{file_path}")
-                full_path = os.path.join(str(self.repo.working_tree_dir), file_path)
-
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-                with open(full_path, "w") as f:
-                    f.write(file_content)
-                    # For some reason this was clobbering newlines, so
-                    # add one. But if the original didn't have one, this
-                    # will cause a diff.
-                    if not file_content.endswith("\n"):
-                        f.write("\n")
+            # Copy files from temp directory to the working directory
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    src_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(src_path, temp_dir)
+                    dst_path = os.path.join(self.repo.working_tree_dir, rel_path)
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
 
     def add_all_and_commit(self, message: str) -> str:
         """

@@ -54,8 +54,7 @@ class GitEnvironment(Environment):
     def finish_session(self):
         if self.original_git_ref is None or self.programmer_branch is None:
             raise ValueError("Session not started")
-        self.repo.checkout_existing(self.original_git_ref)
-        self.repo.copy_all_from_ref(self.programmer_branch)
+        self.repo.checkout_and_copy(self.original_git_ref)
 
     def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
         commit_hash = self.repo.add_all_and_commit(message)
