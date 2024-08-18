@@ -72,3 +72,51 @@ def test_commit_directly_to_branch(setup_repo):
     # Verify that the main branch is unaffected
     main_branch_commit = repo.commit("main")
     assert main_branch_commit.hexsha != session_branch_commit.hexsha
+
+
+def test_no_empty_commit(setup_repo):
+    repo, git_repo, _ = setup_repo
+
+    # Create and checkout the programmer-<session> branch
+    session_branch_name = "programmer-session"
+    git_repo.create_branch(session_branch_name)
+
+    # Commit changes to the programmer-<session> branch
+    commit_message = "Commit from programmer session"
+    initial_commit_sha = repo.commit(session_branch_name).hexsha
+    commit_sha = git_repo.commit_directly_to_branch(session_branch_name, commit_message)
+
+    # Verify that the SHA returned is equal to the initial commit SHA
+    assert initial_commit_sha == commit_sha
+
+    # Verify no new commit is created
+    new_commit_sha = repo.commit(session_branch_name).hexsha
+    assert initial_commit_sha == new_commit_sha
+
+
+def test_multiple_commits_with_empty(setup_repo):
+    repo, git_repo, test_dir = setup_repo
+
+    # Create and checkout the programmer-<session> branch
+    session_branch_name = "programmer-session"
+    git_repo.create_branch(session_branch_name)
+    initial_commit_sha = repo.commit(session_branch_name).hexsha
+
+    # First commit (empty)
+    commit_message = "First empty commit"
+    commit_sha_1 = git_repo.commit_directly_to_branch(session_branch_name, commit_message)
+    assert commit_sha_1 == initial_commit_sha
+
+    # Second commit (non-empty)
+    file_path = os.path.join(test_dir, "test_file.py")
+    with open(file_path, "w") as f:
+        f.write("print('Hello, world!')\n")
+
+    git_repo.commit_directly_to_branch(session_branch_name, "Second commit with changes")
+    commit_sha_2 = repo.commit(session_branch_name).hexsha
+    assert commit_sha_2 != initial_commit_sha
+
+    # Third commit (empty)
+    commit_sha_3 = git_repo.commit_directly_to_branch(session_branch_name, "Third empty commit")
+    assert commit_sha_3 == commit_sha_2
+    assert commit_sha_3 != initial_commit_sha

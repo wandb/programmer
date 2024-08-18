@@ -41,11 +41,18 @@ class GitRepo:
             # Add all files from the working directory to the temporary index
             self.repo.git.add(A=True, env=env)
 
-            # Write the tree from the temporary index
-            tree = self.repo.git.write_tree(env=env)
-
             # Determine the parent commit
             parent_commit = self.repo.commit(branch_name)
+
+            # Check for changes between parent_commit and the temporary index
+            diff_output = self.repo.git.diff(parent_commit.hexsha, '--cached', env=env)
+
+            if not diff_output.strip():
+                # No changes to commit
+                return parent_commit.hexsha
+
+            # Write the tree from the temporary index
+            tree = self.repo.git.write_tree(env=env)
 
             print(
                 f"Committing to branch {branch_name}, parent commit: {parent_commit.hexsha}"
