@@ -45,7 +45,7 @@ class GitRepo:
             parent_commit = self.repo.commit(branch_name)
 
             # Check for changes between parent_commit and the temporary index
-            diff_output = self.repo.git.diff(parent_commit.hexsha, '--cached', env=env)
+            diff_output = self.repo.git.diff(parent_commit.hexsha, "--cached", env=env)
 
             if not diff_output.strip():
                 # No changes to commit
@@ -54,19 +54,18 @@ class GitRepo:
             # Write the tree from the temporary index
             tree = self.repo.git.write_tree(env=env)
 
-            print(
-                f"Committing to branch {branch_name}, parent commit: {parent_commit.hexsha}"
-            )
+            # print(
+            #     f"Committing to branch {branch_name}, parent commit: {parent_commit.hexsha}"
+            # )
 
             # Set author information using environment variables
             env["GIT_AUTHOR_NAME"] = "programmer"
             env["GIT_AUTHOR_EMAIL"] = "programmer-noreply@example.com"
 
             # Use the Repo's git command interface to create a commit-tree
-            commit_hash = self.repo.git.commit_tree(tree,
-                                                    '-p', parent_commit.hexsha,
-                                                    '-m', message,
-                                                    env=env)
+            commit_hash = self.repo.git.commit_tree(
+                tree, "-p", parent_commit.hexsha, "-m", message, env=env
+            )
 
             # Update the branch reference to point to the new commit
             self.repo.git.update_ref(f"refs/heads/{branch_name}", commit_hash)
