@@ -4,7 +4,7 @@ import os
 import subprocess
 import weave
 
-LENGTH_LIMIT = 10000
+LENGTH_LIMIT = 30000
 
 
 def read_image_as_base64(path: str):

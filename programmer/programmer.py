@@ -99,7 +99,7 @@ def main():
     logging_mode = SettingsManager.get_setting("weave_logging")
     if logging_mode == "cloud":
         curdir = os.path.basename(os.path.abspath(os.curdir))
-        weave.init(f"programmerdev1-{curdir}")
+        weave.init(f"programmer-{curdir}")
     elif logging_mode == "local":
         weave.init_local_client()
 

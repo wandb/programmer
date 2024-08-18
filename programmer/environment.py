@@ -3,9 +3,7 @@ from typing import Protocol
 from contextvars import ContextVar
 from contextlib import contextmanager
 
-
 from .git import GitRepo
-
 
 @dataclass
 class EnvironmentSnapshotKey:
@@ -49,15 +47,17 @@ class GitEnvironment(Environment):
         self.original_git_ref = self.repo.get_current_head()
         self.programmer_branch = f"programmer-{session_id}"
         print("programmer_branch:", self.programmer_branch)
-        self.repo.checkout_new(self.programmer_branch)
+        # Create the programmer branch based on the current state
+        self.repo.create_branch(self.programmer_branch)
 
     def finish_session(self):
         if self.original_git_ref is None or self.programmer_branch is None:
             raise ValueError("Session not started")
-        self.repo.checkout_and_copy(self.original_git_ref)
+        # No need to checkout back as we never changed the branch
 
     def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
-        commit_hash = self.repo.add_all_and_commit(message)
+        # Commit directly to the programmer branch using new method
+        commit_hash = self.repo.commit_directly_to_branch(self.programmer_branch, message)
         return EnvironmentSnapshotKey(
             "git", {"origin": self.repo.get_origin_url(), "commit": commit_hash}
         )
