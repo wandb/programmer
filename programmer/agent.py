@@ -26,6 +26,7 @@ def get_last_assistant_content(history: list[Any]) -> Optional[str]:
 
 # Weave bug workaround: adding two WeaveLists can create that cause
 # downstream crashes.
+# Can be removed after https://github.com/wandb/weave/pull/2165 is merged.
 def weavelist_add(self: Union[list, WeaveList], other: list) -> Union[list, WeaveList]:
     if isinstance(self, list):
         return self + other

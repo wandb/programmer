@@ -28,6 +28,9 @@ class GitRepo:
             # Create a new branch from the current HEAD
             self.repo.git.branch(branch_name, self.repo.head.commit.hexsha)
 
+    def checkout_existing(self, branch_name: str) -> None:
+        self.repo.git.checkout(branch_name)
+
     def commit_directly_to_branch(self, branch_name: str, message: str) -> str:
         # Ensure the branch is initialized
         self.create_branch(branch_name)
