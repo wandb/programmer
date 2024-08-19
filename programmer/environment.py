@@ -23,14 +23,17 @@ class Environment(Protocol):
 
 
 @contextmanager
-def environment_session(env: Environment, session_id: str):
-    env.start_session(session_id)
-    token = environment_context.set(env)
-    try:
+def environment_session(env: Environment, session_id: str | None):
+    if session_id is not None:
+        env.start_session(session_id)
+        token = environment_context.set(env)
+        try:
+            yield env
+        finally:
+            env.finish_session()
+            environment_context.reset(token)
+    else:
         yield env
-    finally:
-        env.finish_session()
-        environment_context.reset(token)
 
 
 def get_current_environment() -> Environment:
@@ -56,6 +59,8 @@ class GitEnvironment(Environment):
         # No need to checkout back as we never changed the branch
 
     def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        if self.programmer_branch is None:
+            raise ValueError("Programmer branch is not set")
         # Commit directly to the programmer branch using new method
         commit_hash = self.repo.commit_directly_to_branch(self.programmer_branch, message)
         return EnvironmentSnapshotKey(
@@ -73,7 +78,6 @@ class GitEnvironment(Environment):
             raise ValueError("Origin URL mismatch")
         repo.checkout_existing(commit)
         print("Checked out commit", commit)
-        return cls(repo)
 
 
 class NoopEnvironment(Environment):
@@ -83,17 +87,17 @@ class NoopEnvironment(Environment):
     def finish_session(self):
         pass
 
-    def make_snapshot(self, message: str):
-        pass
+    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        return EnvironmentSnapshotKey("noop", {})
 
     @classmethod
-    def restore_from_snapshot_key(cls, ref: str):
+    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
         pass
 
 
 def restore_environment(snapshot_key: EnvironmentSnapshotKey) -> Environment:
     if snapshot_key.env_id == "git":
-        return GitEnvironment.restore_from_snapshot_key(snapshot_key)
+        GitEnvironment.restore_from_snapshot_key(snapshot_key)
     return NoopEnvironment()
 
 
