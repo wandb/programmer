@@ -23,14 +23,17 @@ class Environment(Protocol):
 
 
 @contextmanager
-def environment_session(env: Environment, session_id: str):
-    env.start_session(session_id)
-    token = environment_context.set(env)
-    try:
+def environment_session(env: Environment, session_id: str | None):
+    if session_id is not None:
+        env.start_session(session_id)
+        token = environment_context.set(env)
+        try:
+            yield env
+        finally:
+            env.finish_session()
+            environment_context.reset(token)
+    else:
         yield env
-    finally:
-        env.finish_session()
-        environment_context.reset(token)
 
 
 def get_current_environment() -> Environment:
@@ -56,6 +59,8 @@ class GitEnvironment(Environment):
         # No need to checkout back as we never changed the branch
 
     def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        if self.programmer_branch is None:
+            raise ValueError("Programmer branch is not set")
         # Commit directly to the programmer branch using new method
         commit_hash = self.repo.commit_directly_to_branch(self.programmer_branch, message)
         return EnvironmentSnapshotKey(
