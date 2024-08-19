@@ -1,4 +1,4 @@
-name: Run Unit Tests
+name: Run Unit Tests and Pyright
 
 on:
   push:
@@ -30,5 +30,11 @@ jobs:
           pip install -e .
           pip install pytest
 
+      - name: Install Pyright
+        run: npm install -g pyright
+
       - name: Run tests
         run: pytest
+
+      - name: Run Pyright
+        run: pyright
