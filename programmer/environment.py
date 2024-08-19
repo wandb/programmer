@@ -78,7 +78,6 @@ class GitEnvironment(Environment):
             raise ValueError("Origin URL mismatch")
         repo.checkout_existing(commit)
         print("Checked out commit", commit)
-        return cls(repo)
 
 
 class NoopEnvironment(Environment):
@@ -88,17 +87,17 @@ class NoopEnvironment(Environment):
     def finish_session(self):
         pass
 
-    def make_snapshot(self, message: str):
-        pass
+    def make_snapshot(self, message: str) -> EnvironmentSnapshotKey:
+        return EnvironmentSnapshotKey("noop", {})
 
     @classmethod
-    def restore_from_snapshot_key(cls, ref: str):
+    def restore_from_snapshot_key(cls, ref: EnvironmentSnapshotKey):
         pass
 
 
 def restore_environment(snapshot_key: EnvironmentSnapshotKey) -> Environment:
     if snapshot_key.env_id == "git":
-        return GitEnvironment.restore_from_snapshot_key(snapshot_key)
+        GitEnvironment.restore_from_snapshot_key(snapshot_key)
     return NoopEnvironment()
 
 
