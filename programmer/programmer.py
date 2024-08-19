@@ -77,13 +77,23 @@ def main():
     settings_parser.add_argument("key", help="The setting key")
     settings_parser.add_argument("value", nargs="?", help="The value to set")
 
+    # Subparser for the prompt command
+    prompt_parser = subparsers.add_parser("prompt", help="Send initial prompt to the LLM")
+    prompt_parser.add_argument("prompt_args", nargs=argparse.REMAINDER, help="The prompt to send")
+
     parser.add_argument(
         "--state", type=str, help="weave ref of the state to begin from"
     )
 
-    SettingsManager.initialize_settings()
 
     # Initialize settings
+    SettingsManager.initialize_settings()
+    logging_mode = SettingsManager.get_setting("weave_logging")
+    if logging_mode == "cloud":
+        curdir = os.path.basename(os.path.abspath(os.curdir))
+        weave.init(f"programmer-{curdir}")
+    elif logging_mode == "local":
+        weave.init_local_client()
 
     args = parser.parse_args()
 
@@ -94,14 +104,11 @@ def main():
             else [args.action, args.key]
         )
         return
+    elif args.command == "prompt":
+        # Handled later.
+        pass
 
     # log to local sqlite db for now
-    logging_mode = SettingsManager.get_setting("weave_logging")
-    if logging_mode == "cloud":
-        curdir = os.path.basename(os.path.abspath(os.curdir))
-        weave.init(f"programmer-{curdir}")
-    elif logging_mode == "local":
-        weave.init_local_client()
 
     Console.welcome()
 
@@ -109,21 +116,21 @@ def main():
         state = weave.ref(args.state).get()
         if state.env_snapshot_key:
             environment = restore_environment(state.env_snapshot_key)
-    else:
-        if len(sys.argv) < 2:
-            initial_prompt = input("Initial prompt: ")
-        else:
-            initial_prompt = " ".join(sys.argv[1:])
-            print("Initial prompt:", initial_prompt)
 
-        state = AgentState(
-            history=[
-                {
-                    "role": "user",
-                    "content": initial_prompt,
-                },
-            ],
-        )
+    if args.command == "prompt":
+        initial_prompt = " ".join(args.prompt_args)
+        print('Initial prompt:', initial_prompt)
+    else:
+        initial_prompt = input("Initial prompt: ")
+
+    state = AgentState(
+        history=[
+            {
+                "role": "user",
+                "content": initial_prompt,
+            },
+        ],
+    )
 
     session(state)
 

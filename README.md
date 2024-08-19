@@ -31,13 +31,24 @@ programmer
 
 Alternatively:
 ```
-programmer "<initial_prompt>"
+programmer prompt <initial_prompt>
 ```
 
 To resume from an earlier state:
 ```
 programmer --state <state_ref>
 ```
+
+## Settings
+
+programmer settings set weave_logging <value>
+  - off: no logging
+  - local: log to local sqlite db
+  - cloudd: log to weave cloud at wandb.ai
+
+programmer settings set git_tracking <value>
+  - off: no git tracking
+  - on: programmer with make programmer-* branches and track changes
 
 
 ## Improving programmer
