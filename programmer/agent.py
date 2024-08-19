@@ -82,7 +82,7 @@ class Agent(weave.Object):
             messages=messages,
             tools=tools,
             stream=True,
-            timeout=15,
+            timeout=60,
         )
         wrapped_stream = OpenAIStream(stream)
         for chunk in wrapped_stream:
