@@ -1,3 +1,6 @@
+# This is a batch Weave query API. It can move into the Weave library
+# if we find it useful.
+
 from typing import Optional, Union, Sequence, Any
 import pandas as pd
 

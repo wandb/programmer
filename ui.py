@@ -1,3 +1,5 @@
+# Streamlit UI for browsing programmer sessions
+
 import pandas as pd
 from typing import Optional, Union, Sequence, Dict, Callable, Any
 import json
