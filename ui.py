@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Optional, Union, Sequence
+from typing import Optional, Union, Sequence, Dict, Callable, Any
 import json
 import streamlit as st
 import weave
@@ -11,7 +11,7 @@ from programmer.settings_manager import SettingsManager
 
 st.set_page_config(layout="wide")
 
-ST_HASH_FUNCS = {WeaveClient: lambda x: x._project_id()}
+ST_HASH_FUNCS: Dict[Any, Callable] = {WeaveClient: lambda x: x._project_id()}
 
 
 @st.cache_resource
@@ -24,7 +24,7 @@ def init_remote_weave(project: str):
     return weave.init(project)
 
 
-def init_from_settings():
+def init_from_settings() -> WeaveClient:
     weave_logging_setting = SettingsManager.get_setting("weave_logging")
     if weave_logging_setting == "off":
         st.error(
@@ -36,6 +36,8 @@ def init_from_settings():
     elif weave_logging_setting == "cloud":
         curdir = os.path.basename(os.path.abspath(os.curdir))
         return init_remote_weave(f"programmer-{curdir}")
+    else:
+        raise ValueError(f"Invalid weave_logging setting: {weave_logging_setting}")
 
 
 client = init_from_settings()
@@ -131,20 +133,20 @@ def print_run_call(
 
 def print_session_call(session_id):
     runs_df = cached_calls(client, "Agent.run", parent_ids=session_id)
-    steps_df = cached_calls(client, "Agent.step", parent_ids=runs_df["id"])
-    step_input_state = cached_expand_refs(client, steps_df["inputs.state"])
+    steps_df = cached_calls(client, "Agent.step", parent_ids=runs_df["id"].tolist())
+    step_input_state = cached_expand_refs(client, steps_df["inputs.state"].tolist())
     if "env_snapshot_key" in step_input_state.columns:
         step_input_snapshot_key = cached_expand_refs(
-            client, step_input_state["env_snapshot_key"]
+            client, step_input_state["env_snapshot_key"].tolist()
         )
     else:
         step_input_snapshot_key = pd.DataFrame()
     # Make step_input_snapshot_key unique by index
     step_input_snapshot_key = step_input_snapshot_key.groupby(level=0).first()
-    step_output_state = cached_expand_refs(client, steps_df["output"])
+    step_output_state = cached_expand_refs(client, steps_df["output"].tolist())
     if "env_snapshot_key" in step_output_state.columns:
         step_output_snapshot_key = cached_expand_refs(
-            client, step_output_state["env_snapshot_key"]
+            client, step_output_state["env_snapshot_key"].tolist()
         )
     else:
         step_output_snapshot_key = pd.DataFrame()
@@ -186,7 +188,7 @@ session_calls_df = cached_calls(client, "session")
 
 
 session_agent_state_df = cached_expand_refs(
-    client, session_calls_df["inputs.agent_state"]
+    client, session_calls_df["inputs.agent_state"].tolist()
 )
 session_user_message_df = session_agent_state_df["history"].apply(
     lambda v: v[-1]["content"]
