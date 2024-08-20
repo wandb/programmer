@@ -1,6 +1,7 @@
 import sys
 import os
 import argparse
+import subprocess
 
 from rich import print
 from rich.console import Console
@@ -13,6 +14,7 @@ from .config import agent
 from .environment import (
     environment_session,
     restore_environment,
+    get_current_environment,
     GitEnvironment,
     NoopEnvironment,
 )
@@ -33,6 +35,7 @@ def user_input_step(state: AgentState) -> AgentState:
     if ref:
         print("state ref:", ref.uri())
     user_input = get_user_input()
+    environment = get_current_environment()
     return AgentState(
         history=state.history
         + [
@@ -41,7 +44,18 @@ def user_input_step(state: AgentState) -> AgentState:
                 "content": user_input,
             }
         ],
+        env_snapshot_key=environment.make_snapshot(f"User: {user_input}"),
     )
+
+
+def make_environment():
+    git_repo = GitRepo.from_current_dir()
+    git_tracking_enabled = SettingsManager.get_setting("git_tracking") == "on"
+    if git_tracking_enabled and git_repo:
+        env = GitEnvironment(git_repo)
+    else:
+        env = NoopEnvironment()
+    return env
 
 
 @weave.op
@@ -52,12 +66,7 @@ def session(agent_state: AgentState):
     if call:
         session_id = call.id
 
-    git_repo = GitRepo.from_current_dir()
-    git_tracking_enabled = SettingsManager.get_setting("git_tracking") == "on"
-    if git_tracking_enabled and git_repo:
-        env = GitEnvironment(git_repo)
-    else:
-        env = NoopEnvironment()
+    env = make_environment()
 
     with environment_session(env, session_id):
         while True:
@@ -77,14 +86,19 @@ def main():
     settings_parser.add_argument("key", help="The setting key")
     settings_parser.add_argument("value", nargs="?", help="The value to set")
 
+    ui_parser = subparsers.add_parser("ui", help="Run the local UI")
+
     # Subparser for the prompt command
-    prompt_parser = subparsers.add_parser("prompt", help="Send initial prompt to the LLM")
-    prompt_parser.add_argument("prompt_args", nargs=argparse.REMAINDER, help="The prompt to send")
+    prompt_parser = subparsers.add_parser(
+        "prompt", help="Send initial prompt to the LLM"
+    )
+    prompt_parser.add_argument(
+        "prompt_args", nargs=argparse.REMAINDER, help="The prompt to send"
+    )
 
     parser.add_argument(
         "--state", type=str, help="weave ref of the state to begin from"
     )
-
 
     # Initialize settings
     SettingsManager.initialize_settings()
@@ -104,6 +118,12 @@ def main():
             else [args.action, args.key]
         )
         return
+    elif args.command == "ui":
+        module_path = os.path.abspath(__file__)
+        module_dir = os.path.dirname(module_path)
+        ui_path = os.path.join(module_dir, "..", "ui.py")
+        subprocess.run(["streamlit", "run", ui_path])
+        return
     elif args.command == "prompt":
         # Handled later.
         pass
@@ -119,7 +139,7 @@ def main():
 
     if args.command == "prompt":
         initial_prompt = " ".join(args.prompt_args)
-        print('Initial prompt:', initial_prompt)
+        print("Initial prompt:", initial_prompt)
     else:
         initial_prompt = input("Initial prompt: ")
 
