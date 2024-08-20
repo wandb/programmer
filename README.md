@@ -50,6 +50,18 @@ programmer settings set git_tracking <value>
   - off: no git tracking
   - on: programmer with make programmer-* branches and track changes
 
+## UI
+
+When weave_logging is set to "cloud" you can use the Weave UI at wandb.ai to browse traces.
+
+Run
+
+```
+programmer ui
+```
+
+to run the local streamlit UI. This should work with either weave_logging:cloud or weave_logging:local, but there are some bugs with local mode at the moment.
+
 
 ## Improving programmer
 
