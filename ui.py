@@ -33,6 +33,7 @@ def init_from_settings() -> WeaveClient:
             "Weave logging is off. Please set weave_logging to 'on' in settings to use this feature."
         )
         st.stop()
+        raise Exception("Should never get here")
     elif weave_logging_setting == "local":
         return init_local_weave()
     elif weave_logging_setting == "cloud":
