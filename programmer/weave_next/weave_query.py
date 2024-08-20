@@ -92,7 +92,7 @@ def _server_refs(self, refs: Sequence[Union[str, Any]]):
     ref_to_result = dict(zip(ref_uris, results))
 
     # Combine results in the original order
-    final_results = [None] * len(refs)
+    final_results: list[Any] = [None] * len(refs)
     for ref, result in ref_to_result.items():
         for index in ref_indices[ref]:
             final_results[index] = result
@@ -131,7 +131,7 @@ class Objs:
     def to_pandas(self):
         vals = _server_refs(self._wc, self._refs)
         df = pd.json_normalize(vals)
-        df.index = self._refs
+        df.index = pd.Index(self._refs)
         return df
 
 
