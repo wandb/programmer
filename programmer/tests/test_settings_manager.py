@@ -1,19 +1,20 @@
 import os
 import pytest
-from programmer.settings_manager import SettingsManager, SETTINGS_DIR, SETTINGS_FILE, SettingsError, DEFAULT_SETTINGS
+import tempfile
+from programmer.settings_manager import SettingsManager, SettingsError
 
 @pytest.fixture(scope="function")
 def setup_and_teardown_settings():
     """Fixture to set up and tear down a temporary settings directory for testing."""
-    test_dir = SETTINGS_DIR
-    test_file = os.path.join(test_dir, SETTINGS_FILE)
-    if not os.path.exists(test_dir):
-        os.makedirs(test_dir)
-    yield test_file
-    if os.path.exists(test_file):
-        os.remove(test_file)
-    if os.path.exists(test_dir):
-        os.rmdir(test_dir)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_settings_dir = SettingsManager.SETTINGS_DIR
+        SettingsManager.set_settings_dir(temp_dir)
+        test_file = os.path.join(temp_dir, SettingsManager.SETTINGS_FILE)
+        try:
+            yield test_file
+        finally:
+            # Restore original settings directory
+            SettingsManager.set_settings_dir(original_settings_dir)
 
 
 def test_initialize_settings_creates_file_with_defaults(setup_and_teardown_settings):
@@ -22,13 +23,13 @@ def test_initialize_settings_creates_file_with_defaults(setup_and_teardown_setti
     assert os.path.exists(test_file)
     with open(test_file, "r") as f:
         settings = f.read().strip()
-    expected_settings = "\n".join(f"{key}={value}" for key, value in DEFAULT_SETTINGS.items())
+    expected_settings = "\n".join(f"{key}={value}" for key, value in SettingsManager.DEFAULT_SETTINGS.items())
     assert settings == expected_settings
 
 
 def test_get_setting(setup_and_teardown_settings):
     SettingsManager.initialize_settings()
-    for key, value in DEFAULT_SETTINGS.items():
+    for key, value in SettingsManager.DEFAULT_SETTINGS.items():
         assert SettingsManager.get_setting(key) == value
 
 

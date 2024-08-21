@@ -1,30 +1,33 @@
 import os
 
-SETTINGS_DIR = ".programmer"
-SETTINGS_FILE = "settings"
-DEFAULT_SETTINGS = {
-    "weave_logging": "local",
-    "git_tracking": "off"
-}
-ALLOWED_VALUES = {
-    "weave_logging": ["off", "local", "cloud"],
-    "git_tracking": ["off", "on"]
-}
-
-
 class SettingsError(Exception):
     pass
 
 
 class SettingsManager:
+    SETTINGS_DIR = ".programmer"
+    SETTINGS_FILE = "settings"
+    DEFAULT_SETTINGS = {
+        "weave_logging": "local",
+        "git_tracking": "off"
+    }
+    ALLOWED_VALUES = {
+        "weave_logging": ["off", "local", "cloud"],
+        "git_tracking": ["off", "on"]
+    }
+
+    @classmethod
+    def set_settings_dir(cls, dir_path):
+        cls.SETTINGS_DIR = dir_path
+
     @staticmethod
     def initialize_settings():
         """
         Ensure that the settings directory and file exist, and populate missing settings with defaults.
         """
-        if not os.path.exists(SETTINGS_DIR):
-            os.makedirs(SETTINGS_DIR)
-        settings_path = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
+        if not os.path.exists(SettingsManager.SETTINGS_DIR):
+            os.makedirs(SettingsManager.SETTINGS_DIR)
+        settings_path = os.path.join(SettingsManager.SETTINGS_DIR, SettingsManager.SETTINGS_FILE)
         if not os.path.exists(settings_path):
             SettingsManager.write_default_settings()
         else:
@@ -35,7 +38,7 @@ class SettingsManager:
         """
         Validate the settings file format and complete it with default values if necessary.
         """
-        settings_path = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
+        settings_path = os.path.join(SettingsManager.SETTINGS_DIR, SettingsManager.SETTINGS_FILE)
         with open(settings_path, "r") as f:
             lines = f.readlines()
 
@@ -46,13 +49,13 @@ class SettingsManager:
                                     f"Please ensure each setting is in 'key=value' format.\n"
                                     f"Settings file location: {settings_path}")
             key, value = line.strip().split("=", 1)
-            if key in ALLOWED_VALUES and value not in ALLOWED_VALUES[key]:
-                raise SettingsError(f"Invalid value '{value}' for setting '{key}'. Allowed values are: {ALLOWED_VALUES[key]}\n"
+            if key in SettingsManager.ALLOWED_VALUES and value not in SettingsManager.ALLOWED_VALUES[key]:
+                raise SettingsError(f"Invalid value '{value}' for setting '{key}'. Allowed values are: {SettingsManager.ALLOWED_VALUES[key]}\n"
                                     f"Settings file location: {settings_path}")
             settings[key] = value
 
         # Add missing default settings
-        for key, default_value in DEFAULT_SETTINGS.items():
+        for key, default_value in SettingsManager.DEFAULT_SETTINGS.items():
             if key not in settings:
                 settings[key] = default_value
 
@@ -66,9 +69,9 @@ class SettingsManager:
         """
         Write the default settings to the settings file.
         """
-        settings_path = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
+        settings_path = os.path.join(SettingsManager.SETTINGS_DIR, SettingsManager.SETTINGS_FILE)
         with open(settings_path, "w") as f:
-            for key, value in DEFAULT_SETTINGS.items():
+            for key, value in SettingsManager.DEFAULT_SETTINGS.items():
                 f.write(f"{key}={value}\n")
 
     @staticmethod
@@ -76,7 +79,7 @@ class SettingsManager:
         """
         Retrieve a setting's value by key.
         """
-        settings_path = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
+        settings_path = os.path.join(SettingsManager.SETTINGS_DIR, SettingsManager.SETTINGS_FILE)
         if not os.path.exists(settings_path):
             return None
         with open(settings_path, "r") as f:
@@ -90,9 +93,9 @@ class SettingsManager:
         """
         Set a setting's value by key, validating allowed values.
         """
-        settings_path = os.path.join(SETTINGS_DIR, SETTINGS_FILE)
-        if key in ALLOWED_VALUES and value not in ALLOWED_VALUES[key]:
-            raise SettingsError(f"Invalid value '{value}' for setting '{key}'. Allowed values are: {ALLOWED_VALUES[key]}\n"
+        settings_path = os.path.join(SettingsManager.SETTINGS_DIR, SettingsManager.SETTINGS_FILE)
+        if key in SettingsManager.ALLOWED_VALUES and value not in SettingsManager.ALLOWED_VALUES[key]:
+            raise SettingsError(f"Invalid value '{value}' for setting '{key}'. Allowed values are: {SettingsManager.ALLOWED_VALUES[key]}\n"
                                 f"Settings file location: {settings_path}")
 
         lines = []
