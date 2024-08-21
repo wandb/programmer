@@ -54,3 +54,17 @@ There are not currently tests for weave_query.py, and we want to make sure we do
 2) implement the interface improvements above. This will require first writing new unit tests to cover the new functionality.
 
 For unit testing against weave, we have a fixture in programmer/tests/conftest.py that constructs a weave client against an in memory database. I haven't tested the fixture yet, so it may need to be updated.
+
+
+Design doc questions and answers
+--------------------------------
+programmer asked questions, Shawn answered
+
+- Q: Are there any specific edge cases or scenarios that are of particular concern when expanding refs that should be covered in the tests?
+  - A: I'm not aware of additional edge cases not covered in the code, but there may be!
+- Q: Is there any existing documentation or notes on the current limitations or known issues with the weave query interface?
+  - A: No other existing docs.
+- Q: Should the improved interface support any additional functionality beyond what's described (e.g., filtering, sorting)?
+  - A: No additional functionality.
+- Q: Are there any performance considerations or constraints we should be aware of when expanding refs recursively?
+  - A: Refs should be expanded in batches. Currently _server_call_pages() fetches calls in pages. I think we should expand refs per page as well.
