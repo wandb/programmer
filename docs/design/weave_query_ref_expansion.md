@@ -44,18 +44,8 @@ You can use weave_query.py's functions to resolve calls with Object refs, which 
 The goal of this project is to improve the interface, into a single calls interface that allows us to fetch calls and expand refs and nested refs in one-shot. Something like this:
 
 ```
-calls_query = calls('my_op', expand_refs=['output', 'output.field_a'])
+calls_query = calls(weave_client, 'my_op', expand_refs=['output', 'output.field_a'])
 calls_df = calls_query.to_pandas()
 ```
 
-The tests for weave_query.py are currently very minimal. We want to make sure we don't break existing behaviors. So this project should proceed in two phases:
-
-1) write comprehensive unit tests for weave_query.py, especially ensuring we cover expanding refs in calls and expanding refs in those resulting objects
-2) implement the interface improvements above. This will require first writing new unit tests to cover the new functionality.
-
-For unit testing against weave, we have a fixture in programmer/tests/conftest.py that constructs a weave client against an in memory database. I haven't tested the fixture yet, so it may need to be updated.
-
-Implementation guidance:
-
-- _server_call_pages() fetches calls in pages. We should expand refs in pages as well.
-- we should expand one column of refs at a time, iteratively
+Please implement the feature including comprehensive unit tests.
