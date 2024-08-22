@@ -3,7 +3,6 @@
 
 from typing import Optional, Union, Sequence, Any
 import pandas as pd
-
 from weave.weave_client import WeaveClient
 from weave.trace_server.trace_server_interface import (
     CallsQueryReq,
@@ -17,8 +16,6 @@ def _construct_calls_filter(
     op_names: Optional[Union[str, Sequence[str]]] = None,
     parent_ids: Optional[Union[str, Sequence[str]]] = None,
 ):
-    # TODO: this should have some safety checks
-
     if op_names is None:
         op_names = []
     elif isinstance(op_names, str):
@@ -71,7 +68,6 @@ def _server_call_pages(
 
 
 def _server_refs(self, refs: Sequence[Union[str, Any]]):
-    # Separate refs and non-refs
     ref_uris = []
     non_refs = []
     ref_indices = {}
@@ -84,17 +80,14 @@ def _server_refs(self, refs: Sequence[Union[str, Any]]):
         else:
             non_refs.append((i, item))
 
-    # Process ref URIs
     results = []
     for offset in range(0, len(ref_uris), 1000):
         batch = ref_uris[offset : offset + 1000]
         read_res = self.server.refs_read_batch(RefsReadBatchReq(refs=batch))
         results.extend(read_res.vals)
 
-    # Create a mapping from ref to result
     ref_to_result = dict(zip(ref_uris, results))
 
-    # Combine results in the original order
     final_results: list[Any] = [None] * len(refs)
     for ref, result in ref_to_result.items():
         for index in ref_indices[ref]:
@@ -105,14 +98,43 @@ def _server_refs(self, refs: Sequence[Union[str, Any]]):
     return final_results
 
 
+def _expand_refs_in_page(wc: WeaveClient, page: list[dict], expand_refs: list[str]):
+    # To hack this implementation together, I flatten on each pass instead of dealing
+    # with nested keys. This functionality will be available in the server soon,
+    # so we can get rid of most of this code.
+    flat_page = pd.json_normalize(page).to_dict(orient="records")
+    for ref in expand_refs:
+        ref_values = [call.get(ref) for call in flat_page]
+        expanded_refs = _server_refs(wc, ref_values)
+        for call, expanded_ref in zip(flat_page, expanded_refs):
+            orig_val = call[ref]
+            call[ref] = expanded_ref
+            if (
+                isinstance(orig_val, str)
+                and orig_val.startswith("weave://")
+                and isinstance(expanded_ref, dict)
+            ):
+                expanded_ref["_ref"] = orig_val
+        flat_page = pd.json_normalize(flat_page).to_dict(orient="records")
+    return flat_page
+
+
 class Calls:
-    def __init__(self, wc: WeaveClient, filt: CallsFilter):
+    def __init__(
+        self,
+        wc: WeaveClient,
+        filt: CallsFilter,
+        expand_refs: Optional[list[str]] = None,
+    ):
         self._wc = wc
         self._filt = filt
+        self._expand_refs = expand_refs or []
 
     def to_pandas(self):
         vals = []
         for page in _server_call_pages(self._wc, self._filt):
+            if self._expand_refs:
+                page = _expand_refs_in_page(self._wc, page, self._expand_refs)
             vals.extend(page)
         return pd.json_normalize(vals)
 
@@ -122,8 +144,11 @@ def calls(
     op_names: Optional[Union[str, Sequence[str]]] = None,
     parent_ids: Optional[Union[str, Sequence[str]]] = None,
     limit: Optional[int] = None,
+    expand_refs: Optional[list[str]] = None,
 ):
-    return Calls(wc, _construct_calls_filter(wc._project_id(), op_names, parent_ids))
+    return Calls(
+        wc, _construct_calls_filter(wc._project_id(), op_names, parent_ids), expand_refs
+    )
 
 
 class Objs:
