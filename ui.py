@@ -170,7 +170,9 @@ with st.sidebar:
         )
     }
     sel_message = st.radio("Session", options=message_ids.keys())
-    sel_id = message_ids.get(sel_message)
+    sel_id = None
+    if sel_message:
+        sel_id = message_ids.get(sel_message)
 
 if sel_id:
     st.header(f"Session: {sel_id}")
