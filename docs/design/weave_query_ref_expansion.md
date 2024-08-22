@@ -41,7 +41,7 @@ In programmer we've built a new weave query interface in `programmer/weave_next/
 
 You can use weave_query.py's functions to resolve calls with Object refs, which may contain other refs, but its a bit cumbersome at the moment.
 
-The goal of this project is to improve the interface, into a single calls interface that allows us to fetch calls and expand refs and nested refs (recursively) in one-shot. Something like this:
+The goal of this project is to improve the interface, into a single calls interface that allows us to fetch calls and expand refs and nested refs in one-shot. Something like this:
 
 ```
 calls_query = calls('my_op', expand_refs=['output', 'output.field_a'])
@@ -55,16 +55,7 @@ The tests for weave_query.py are currently very minimal. We want to make sure we
 
 For unit testing against weave, we have a fixture in programmer/tests/conftest.py that constructs a weave client against an in memory database. I haven't tested the fixture yet, so it may need to be updated.
 
+Implementation guidance:
 
-Design doc questions and answers
---------------------------------
-programmer asked questions, Shawn answered
-
-- Q: Are there any specific edge cases or scenarios that are of particular concern when expanding refs that should be covered in the tests?
-  - A: I'm not aware of additional edge cases not covered in the code, but there may be!
-- Q: Is there any existing documentation or notes on the current limitations or known issues with the weave query interface?
-  - A: No other existing docs.
-- Q: Should the improved interface support any additional functionality beyond what's described (e.g., filtering, sorting)?
-  - A: No additional functionality.
-- Q: Are there any performance considerations or constraints we should be aware of when expanding refs recursively?
-  - A: Refs should be expanded in batches. Currently _server_call_pages() fetches calls in pages. I think we should expand refs per page as well.
+- _server_call_pages() fetches calls in pages. We should expand refs in pages as well.
+- we should expand one column of refs at a time, iteratively
