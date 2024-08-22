@@ -65,7 +65,7 @@ def cached_expand_refs(wc: WeaveClient, refs: Sequence[str]):
     return expand_refs(wc, refs).to_pandas()
 
 
-def print_step_call(call, start_state, end_state, start_snapshot_key, end_snapshot_key):
+def print_step_call(call, start_state, end_state):
     if isinstance(end_state.history, float):
         st.write("STEP WITH NO OUTPUT")
         return
@@ -96,14 +96,14 @@ def print_step_call(call, start_state, end_state, start_snapshot_key, end_snapsh
         def set_focus_step_closure():
             set_focus_step_id(call.id)
 
-        if start_snapshot_key is not None and end_snapshot_key is not None:
-            if (
-                start_snapshot_key["snapshot_info.commit"]
-                != end_snapshot_key["snapshot_info.commit"]
-            ):
-                st.text(
-                    f'git diff {start_snapshot_key["snapshot_info.commit"]} {end_snapshot_key["snapshot_info.commit"]}'
-                )
+        # if start_snapshot_key is not None and end_snapshot_key is not None:
+        #     if (
+        #         start_snapshot_key["snapshot_info.commit"]
+        #         != end_snapshot_key["snapshot_info.commit"]
+        #     ):
+        #         st.text(
+        #             f'git diff {start_snapshot_key["snapshot_info.commit"]} {end_snapshot_key["snapshot_info.commit"]}'
+        #         )
 
         # st.button("focus", key=f"focus-{call.id}", on_click=set_focus_step_closure)
 
@@ -113,9 +113,10 @@ def print_run_call(
     steps_df,
     step_inputs_state,
     step_outputs,
-    steps_input_snapshot_key,
-    steps_output_snapshot_key,
+    # steps_input_snapshot_key,
+    # steps_output_snapshot_key,
 ):
+    st.write("RUN CALL", call.id)
     start_state = step_inputs_state.iloc[0]
     user_input = start_state["history"][-1]["content"]
     with st.chat_message("user"):
@@ -123,14 +124,14 @@ def print_run_call(
     for _, step in steps_df.iterrows():
         step_input_state = step_inputs_state.loc[step["inputs.state"]]
         step_output = step_outputs.loc[step["output"]]
-        step_input_snapshot_key = steps_input_snapshot_key.loc[step["inputs.state"]]
-        step_output_snapshot_key = steps_output_snapshot_key.loc[step["output"]]
+        # step_input_snapshot_key = steps_input_snapshot_key.loc[step["inputs.state"]]
+        # step_output_snapshot_key = steps_output_snapshot_key.loc[step["output"]]
         print_step_call(
             step,
             step_input_state,
             step_output,
-            step_input_snapshot_key,
-            step_output_snapshot_key,
+            # step_input_snapshot_key,
+            # step_output_snapshot_key,
         )
 
 
@@ -160,30 +161,30 @@ def print_session_call(session_id):
         run_steps_df = steps_df[steps_df["parent_id"] == run_call_data["id"]]
         run_steps_inputs_state = step_input_state.loc[run_steps_df["inputs.state"]]
         run_steps_output = step_output_state.loc[run_steps_df["output"]]
-        if "env_snapshot_key" in run_steps_inputs_state.columns:
-            run_steps_input_snapshot_key = run_steps_inputs_state[
-                "env_snapshot_key"
-            ].apply(lambda x: None if pd.isna(x) else step_input_snapshot_key.loc[x])
-        else:
-            run_steps_input_snapshot_key = pd.Series(
-                [None] * len(run_steps_inputs_state), index=run_steps_inputs_state.index
-            )
-        if "env_snapshot_key" in run_steps_output.columns:
-            run_steps_output_snapshot_key = run_steps_output["env_snapshot_key"].apply(
-                lambda x: None if pd.isna(x) else step_output_snapshot_key.loc[x]
-            )
-        else:
-            run_steps_output_snapshot_key = pd.Series(
-                [None] * len(run_steps_output), index=run_steps_output.index
-            )
+        # if "env_snapshot_key" in run_steps_inputs_state.columns:
+        #     run_steps_input_snapshot_key = run_steps_inputs_state[
+        #         "env_snapshot_key"
+        #     ].apply(lambda x: None if pd.isna(x) else step_input_snapshot_key.loc[x])
+        # else:
+        #     run_steps_input_snapshot_key = pd.Series(
+        #         [None] * len(run_steps_inputs_state), index=run_steps_inputs_state.index
+        #     )
+        # if "env_snapshot_key" in run_steps_output.columns:
+        #     run_steps_output_snapshot_key = run_steps_output["env_snapshot_key"].apply(
+        #         lambda x: None if pd.isna(x) else step_output_snapshot_key.loc[x]
+        #     )
+        # else:
+        #     run_steps_output_snapshot_key = pd.Series(
+        #         [None] * len(run_steps_output), index=run_steps_output.index
+        #     )
 
         print_run_call(
             run_call_data,
             run_steps_df,
             run_steps_inputs_state,
             run_steps_output,
-            run_steps_input_snapshot_key,
-            run_steps_output_snapshot_key,
+            # run_steps_input_snapshot_key,
+            # run_steps_output_snapshot_key,
         )
 
 
@@ -200,9 +201,10 @@ session_user_message_df = session_agent_state_df["history"].apply(
 
 with st.sidebar:
     message_ids = {
-        m: cid for cid, m in zip(session_calls_df["id"], session_user_message_df)
+        f"{cid[-5:]}: {m}": cid
+        for cid, m in zip(session_calls_df["id"], session_user_message_df)
     }
-    sel_message = st.radio("Session", options=session_user_message_df)
+    sel_message = st.radio("Session", options=message_ids.keys())
     sel_id = message_ids.get(sel_message)
 
 if sel_id:
