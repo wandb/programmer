@@ -56,8 +56,15 @@ def cached_calls(
     op_names: Optional[Union[str, Sequence[str]]] = None,
     parent_ids: Optional[Union[str, Sequence[str]]] = None,
     limit: Optional[int] = None,
+    expand_refs: Optional[list[str]] = None,
 ):
-    return calls(wc, op_names=op_names, parent_ids=parent_ids, limit=limit).to_pandas()
+    return calls(
+        wc,
+        op_names=op_names,
+        parent_ids=parent_ids,
+        limit=limit,
+        expand_refs=expand_refs,
+    ).to_pandas()
 
 
 @st.cache_data(hash_funcs=ST_HASH_FUNCS)
@@ -65,11 +72,13 @@ def cached_expand_refs(wc: WeaveClient, refs: Sequence[str]):
     return expand_refs(wc, refs).to_pandas()
 
 
-def print_step_call(call, start_state, end_state):
-    if isinstance(end_state.history, float):
+def print_step_call(call):
+    start_history = call["inputs.state.history"]
+    end_history = call["output.history"]
+    if isinstance(end_history, float):
         st.write("STEP WITH NO OUTPUT")
         return
-    step_messages = list(end_state.history)[len(start_state.history) :]
+    step_messages = list(end_history)[len(start_history) :]
     assistant_message = step_messages[0]
     tool_response_messages = step_messages[1:]
 
@@ -96,14 +105,17 @@ def print_step_call(call, start_state, end_state):
         def set_focus_step_closure():
             set_focus_step_id(call.id)
 
-        # if start_snapshot_key is not None and end_snapshot_key is not None:
-        #     if (
-        #         start_snapshot_key["snapshot_info.commit"]
-        #         != end_snapshot_key["snapshot_info.commit"]
-        #     ):
-        #         st.text(
-        #             f'git diff {start_snapshot_key["snapshot_info.commit"]} {end_snapshot_key["snapshot_info.commit"]}'
-        #         )
+        try:
+            start_snapshot_commit = call[
+                "inputs.state.env_snapshot_key.snapshot_info.commit"
+            ]
+            end_snapshot_commit = call["output.env_snapshot_key.snapshot_info.commit"]
+
+            if start_snapshot_commit is not None and end_snapshot_commit is not None:
+                if start_snapshot_commit != end_snapshot_commit:
+                    st.text(f"git diff {start_snapshot_commit} {end_snapshot_commit}")
+        except KeyError:
+            pass
 
         # st.button("focus", key=f"focus-{call.id}", on_click=set_focus_step_closure)
 
@@ -111,90 +123,41 @@ def print_step_call(call, start_state, end_state):
 def print_run_call(
     call,
     steps_df,
-    step_inputs_state,
-    step_outputs,
-    # steps_input_snapshot_key,
-    # steps_output_snapshot_key,
 ):
     st.write("RUN CALL", call.id)
-    start_state = step_inputs_state.iloc[0]
-    user_input = start_state["history"][-1]["content"]
+    start_history = steps_df.iloc[0]["inputs.state.history"]
+    user_input = start_history[-1]["content"]
     with st.chat_message("user"):
         st.write(user_input)
     for _, step in steps_df.iterrows():
-        step_input_state = step_inputs_state.loc[step["inputs.state"]]
-        step_output = step_outputs.loc[step["output"]]
-        # step_input_snapshot_key = steps_input_snapshot_key.loc[step["inputs.state"]]
-        # step_output_snapshot_key = steps_output_snapshot_key.loc[step["output"]]
-        print_step_call(
-            step,
-            step_input_state,
-            step_output,
-            # step_input_snapshot_key,
-            # step_output_snapshot_key,
-        )
+        print_step_call(step)
 
 
 def print_session_call(session_id):
     runs_df = cached_calls(client, "Agent.run", parent_ids=session_id)
-    steps_df = cached_calls(client, "Agent.step", parent_ids=runs_df["id"].tolist())
-    step_input_state = cached_expand_refs(client, steps_df["inputs.state"].tolist())
-    if "env_snapshot_key" in step_input_state.columns:
-        step_input_snapshot_key = cached_expand_refs(
-            client, step_input_state["env_snapshot_key"].tolist()
-        )
-    else:
-        step_input_snapshot_key = pd.DataFrame()
-    # Make step_input_snapshot_key unique by index
-    step_input_snapshot_key = step_input_snapshot_key.groupby(level=0).first()
-    step_output_state = cached_expand_refs(client, steps_df["output"].tolist())
-    if "env_snapshot_key" in step_output_state.columns:
-        step_output_snapshot_key = cached_expand_refs(
-            client, step_output_state["env_snapshot_key"].tolist()
-        )
-    else:
-        step_output_snapshot_key = pd.DataFrame()
-    # Make step_output_snapshot_key unique by index
-    step_output_snapshot_key = step_output_snapshot_key.groupby(level=0).first()
+    steps_df = cached_calls(
+        client,
+        "Agent.step",
+        parent_ids=runs_df["id"].tolist(),
+        expand_refs=[
+            "inputs.state",
+            "inputs.state.env_snapshot_key",
+            "output",
+            "output.env_snapshot_key",
+        ],
+    )
 
     for _, run_call_data in runs_df.iterrows():
         run_steps_df = steps_df[steps_df["parent_id"] == run_call_data["id"]]
-        run_steps_inputs_state = step_input_state.loc[run_steps_df["inputs.state"]]
-        run_steps_output = step_output_state.loc[run_steps_df["output"]]
-        # if "env_snapshot_key" in run_steps_inputs_state.columns:
-        #     run_steps_input_snapshot_key = run_steps_inputs_state[
-        #         "env_snapshot_key"
-        #     ].apply(lambda x: None if pd.isna(x) else step_input_snapshot_key.loc[x])
-        # else:
-        #     run_steps_input_snapshot_key = pd.Series(
-        #         [None] * len(run_steps_inputs_state), index=run_steps_inputs_state.index
-        #     )
-        # if "env_snapshot_key" in run_steps_output.columns:
-        #     run_steps_output_snapshot_key = run_steps_output["env_snapshot_key"].apply(
-        #         lambda x: None if pd.isna(x) else step_output_snapshot_key.loc[x]
-        #     )
-        # else:
-        #     run_steps_output_snapshot_key = pd.Series(
-        #         [None] * len(run_steps_output), index=run_steps_output.index
-        #     )
 
         print_run_call(
             run_call_data,
             run_steps_df,
-            run_steps_inputs_state,
-            run_steps_output,
-            # run_steps_input_snapshot_key,
-            # run_steps_output_snapshot_key,
         )
 
 
-session_calls_df = cached_calls(client, "session")
-
-
-session_agent_state_df = cached_expand_refs(
-    client, session_calls_df["inputs.agent_state"].tolist()
-)
-session_user_message_df = session_agent_state_df["history"].apply(
+session_calls_df = cached_calls(client, "session", expand_refs=["inputs.agent_state"])
+session_user_message_df = session_calls_df["inputs.agent_state.history"].apply(
     lambda v: v[-1]["content"]
 )
 
@@ -202,7 +165,9 @@ session_user_message_df = session_agent_state_df["history"].apply(
 with st.sidebar:
     message_ids = {
         f"{cid[-5:]}: {m}": cid
-        for cid, m in zip(session_calls_df["id"], session_user_message_df)
+        for cid, m in reversed(
+            list(zip(session_calls_df["id"], session_user_message_df))
+        )
     }
     sel_message = st.radio("Session", options=message_ids.keys())
     sel_id = message_ids.get(sel_message)
