@@ -48,7 +48,7 @@ calls_query = calls('my_op', expand_refs=['output', 'output.field_a'])
 calls_df = calls_query.to_pandas()
 ```
 
-There are not currently tests for weave_query.py, and we want to make sure we don't break existing behaviors. So this project should proceed in two phases:
+The tests for weave_query.py are currently very minimal. We want to make sure we don't break existing behaviors. So this project should proceed in two phases:
 
 1) write comprehensive unit tests for weave_query.py, especially ensuring we cover expanding refs in calls and expanding refs in those resulting objects
 2) implement the interface improvements above. This will require first writing new unit tests to cover the new functionality.
