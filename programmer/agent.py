@@ -18,7 +18,7 @@ from .environment import get_current_environment, EnvironmentSnapshotKey
 def get_commit_message(history: list[Any]) -> str:
     # Commit message is the most recent message with 'content'
     for i in range(len(history) - 1, -1, -1):
-        if "content" in history[i] and "role" in history[i]:
+        if history[i].get("role") != "tool" and "content" in history[i]:
             return f'{history[i]["role"]}: {history[i]["content"]}'
     return "commit"
 
