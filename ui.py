@@ -113,7 +113,14 @@ def print_step_call(call):
 
             if start_snapshot_commit is not None and end_snapshot_commit is not None:
                 if start_snapshot_commit != end_snapshot_commit:
-                    st.text(f"git diff {start_snapshot_commit} {end_snapshot_commit}")
+                    with st.expander(
+                        f"git diff {start_snapshot_commit} {end_snapshot_commit}"
+                    ):
+                        diff_output = os.popen(
+                            f"git diff {start_snapshot_commit} {end_snapshot_commit}"
+                        ).read()
+                        st.code(diff_output, language="diff")
+
         except KeyError:
             pass
 
