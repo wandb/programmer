@@ -129,7 +129,7 @@ def main():
     elif args.command == "ui":
         module_path = os.path.abspath(__file__)
         module_dir = os.path.dirname(module_path)
-        ui_path = os.path.join(module_dir, "..", "ui.py")
+        ui_path = os.path.join(module_dir, "..", "programmer-ui", "ui.py")
         subprocess.run(["streamlit", "run", ui_path])
         return
     elif args.command == "prompt":
