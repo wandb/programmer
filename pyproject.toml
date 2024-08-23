@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["programmer"]
+packages = { find = {} }
 
 [project.urls]
 Homepage = "https://github.com/wandb/programmer"
