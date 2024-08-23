@@ -8,6 +8,7 @@ import weave
 import os
 from weave.weave_client import WeaveClient
 
+from programmer.weave_next.api import init_local_client
 from programmer.weave_next.weave_query import calls, expand_refs
 from programmer.settings_manager import SettingsManager
 
@@ -18,7 +19,7 @@ ST_HASH_FUNCS: Dict[Any, Callable] = {WeaveClient: lambda x: x._project_id()}
 
 @st.cache_resource
 def init_local_weave():
-    return weave.init_local_client()
+    return init_local_client()
 
 
 @st.cache_resource

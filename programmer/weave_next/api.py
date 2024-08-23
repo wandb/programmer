@@ -3,6 +3,9 @@
 from typing import Optional
 import base64
 
+
+from weave.weave_client import WeaveClient
+from weave.weave_init import InitializedClient
 from weave.trace_server.external_to_internal_trace_server_adapter import (
     IdConverter,
     ExternalTraceServer,
@@ -46,6 +49,9 @@ def make_external_sql_server(internal_server: SqliteTraceServer) -> ExternalTrac
     )
 
 
-def init_local_client() -> SqliteTraceServer:
-    # TODO: implement
-    raise NotImplementedError
+def init_local_client(db_path: str = "weave.db"):
+    server = SqliteTraceServer(db_path)
+    server.setup_tables()
+    server = make_external_sql_server(server)
+    client = WeaveClient("none", "none", server)
+    return InitializedClient(client).client
