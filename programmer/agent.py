@@ -15,13 +15,12 @@ from .tool_calling import chat_call_tool_params, perform_tool_calls
 from .environment import get_current_environment, EnvironmentSnapshotKey
 
 
-def get_last_assistant_content(history: list[Any]) -> Optional[str]:
+def get_commit_message(history: list[Any]) -> str:
+    # Commit message is the most recent message with 'content'
     for i in range(len(history) - 1, -1, -1):
-        if history[i]["role"] == "assistant" and "content" in history[i]:
-            return history[i]["content"]
-        elif history[i]["role"] == "user":
-            break
-    return None
+        if history[i].get("role") != "tool" and "content" in history[i]:
+            return f'{history[i]["role"]}: {history[i]["content"]}'
+    return "commit"
 
 
 # Weave bug workaround: adding two WeaveLists can create that cause
@@ -105,14 +104,10 @@ class Agent(weave.Object):
 
         # new_history = state.history + new_messages
         new_history = weavelist_add(state.history, new_messages)
-        last_assistant_message = get_last_assistant_content(new_history)
-        if last_assistant_message:
-            message = last_assistant_message
-        else:
-            message = "commit"
+        msg = get_commit_message(new_history)
 
         environment = get_current_environment()
-        snapshot_key = environment.make_snapshot(message)
+        snapshot_key = environment.make_snapshot(msg)
 
         return AgentState(history=new_history, env_snapshot_key=snapshot_key)
 
