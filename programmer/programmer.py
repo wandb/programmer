@@ -108,7 +108,7 @@ def main():
         curdir = os.path.basename(os.path.abspath(os.curdir))
         weave.init(f"programmer-{curdir}")
     elif logging_mode == "local":
-        init_local_client()
+        init_local_client(os.path.join(SettingsManager.PROGRAMMER_DIR, "weave.db"))
 
     args = parser.parse_args()
 
