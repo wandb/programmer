@@ -18,8 +18,8 @@ ST_HASH_FUNCS: Dict[Any, Callable] = {WeaveClient: lambda x: x._project_id()}
 
 
 @st.cache_resource
-def init_local_weave():
-    return init_local_client()
+def init_local_weave(db_path: str = "weave.db"):
+    return init_local_client(db_path)
 
 
 @st.cache_resource
@@ -28,6 +28,7 @@ def init_remote_weave(project: str):
 
 
 def init_from_settings() -> WeaveClient:
+    SettingsManager.initialize_settings()
     weave_logging_setting = SettingsManager.get_setting("weave_logging")
     if weave_logging_setting == "off":
         st.error(
@@ -36,7 +37,9 @@ def init_from_settings() -> WeaveClient:
         st.stop()
         raise Exception("Should never get here")
     elif weave_logging_setting == "local":
-        return init_local_weave()
+        return init_local_weave(
+            os.path.join(SettingsManager.PROGRAMMER_DIR, "weave.db")
+        )
     elif weave_logging_setting == "cloud":
         curdir = os.path.basename(os.path.abspath(os.curdir))
         return init_remote_weave(f"programmer-{curdir}")
@@ -165,12 +168,18 @@ def print_session_call(session_id):
 
 
 session_calls_df = cached_calls(client, "session", expand_refs=["inputs.agent_state"])
+if len(session_calls_df) == 0:
+    st.error("No programmer sessions found.")
+    st.stop()
 session_user_message_df = session_calls_df["inputs.agent_state.history"].apply(
     lambda v: v[-1]["content"]
 )
 
 
 with st.sidebar:
+    if st.button("Refresh"):
+        st.cache_data.clear()
+        st.rerun()
     message_ids = {
         f"{cid[-5:]}: {m}": cid
         for cid, m in reversed(

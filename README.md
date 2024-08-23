@@ -39,20 +39,15 @@ To resume from an earlier state:
 programmer --state <state_ref>
 ```
 
-## Settings
+## Tracking
 
-programmer settings set weave_logging <value>
-  - off: no logging
-  - local: log to local sqlite db
-  - cloudd: log to weave cloud at wandb.ai
+Programmer is designed to get better over time. For that we need to track trajectories, identify good and bad ones to add to Evaluations (like unit tests for AI), and then iterate on programmer's prompts and architecture to improve against the Evaluations.
 
-programmer settings set git_tracking <value>
-  - off: no git tracking
-  - on: programmer with make programmer-* branches and track changes
+By default all trajectories are logged to `.programmer/weave.db`. You can turn on cloud logging with `programmer settings set weave_logging cloud`. Trajectories will be saved to Weave at wandb.ai
+
+You can turn on git tracking with `programmer settings set git_tracking on` to get programmer to track all of its work in "programmer-*" branches. Each git state will be associated with the Weave trajectories, and you can browse the diffs with `programmer ui`
 
 ## UI
-
-When weave_logging is set to "cloud" you can use the Weave UI at wandb.ai to browse traces.
 
 Run
 
@@ -62,6 +57,24 @@ programmer ui
 
 to run the local streamlit UI. This should work with either weave_logging:cloud or weave_logging:local, but there are some bugs with local mode at the moment.
 
+![Programmer UI screenshot](./assets/programmer-ui.png)
+
+# Weave UI 
+
+When weave_logging is set to "cloud" you can use the Weave UI at wandb.ai to browse traces.
+
+## Settings
+
+Settings are stored in .programmer/settings
+
+programmer settings set weave_logging <value>
+  - off: no logging
+  - local: log to local sqlite db
+  - cloudd: log to weave cloud at wandb.ai
+
+programmer settings set git_tracking <value>
+  - off: no git tracking
+  - on: programmer with make programmer-* branches and track changes
 
 ## Improving programmer
 
@@ -80,7 +93,8 @@ python evaluate.py
 
 ## roadmap
 
-- [ ] weave server tracking
-- [ ] git state tracking
+- [x] weave server tracking
+- [x] git state tracking
+- [x] basic trajectory UI
 - [ ] user-annotation of good and bad behaviors
 - [ ] eval generation
