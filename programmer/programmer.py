@@ -6,9 +6,11 @@ import subprocess
 from rich import print
 from rich.console import Console
 
+from typing import Any, Optional
+
 import weave
 
-from .agent import AgentState
+from .agent import AgentState, get_commit_message
 from .console import Console
 from .config import agent
 from .environment import (
@@ -37,15 +39,16 @@ def user_input_step(state: AgentState) -> AgentState:
         print("state ref:", ref.uri())
     user_input = get_user_input()
     environment = get_current_environment()
+    history = state.history + [
+        {
+            "role": "user",
+            "content": user_input,
+        }
+    ]
+    msg = get_commit_message(history)
     return AgentState(
-        history=state.history
-        + [
-            {
-                "role": "user",
-                "content": user_input,
-            }
-        ],
-        env_snapshot_key=environment.make_snapshot(f"User: {user_input}"),
+        history=history,
+        env_snapshot_key=environment.make_snapshot(msg),
     )
 
 
@@ -68,8 +71,12 @@ def session(agent_state: AgentState):
         session_id = call.id
 
     env = make_environment()
+    msg = get_commit_message(agent_state.history)
 
     with environment_session(env, session_id):
+        agent_state = AgentState(
+            history=agent_state.history, env_snapshot_key=env.make_snapshot(msg)
+        )
         while True:
             agent_state = agent.run(agent_state)
             agent_state = user_input_step(agent_state)
