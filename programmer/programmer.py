@@ -18,6 +18,7 @@ from .environment import (
     GitEnvironment,
     NoopEnvironment,
 )
+from .weave_next.api import init_local_client
 from .settings_manager import SettingsManager
 
 from .git import GitRepo
@@ -107,7 +108,7 @@ def main():
         curdir = os.path.basename(os.path.abspath(os.curdir))
         weave.init(f"programmer-{curdir}")
     elif logging_mode == "local":
-        weave.init_local_client()
+        init_local_client()
 
     args = parser.parse_args()
 
