@@ -90,6 +90,8 @@ def print_step_call(call):
         raise ValueError(f"Expected assistant message, got {assistant_message['role']}")
 
     with st.chat_message("assistant"):
+        st.write(f"https://wandb.ai/shawn/programmer-sympy/weave/calls/{call.id}")
+        st.write(f"State ref:", call["inputs.state._ref"])
         if "content" in assistant_message:
             st.write(assistant_message["content"])
         if "tool_calls" in assistant_message:
@@ -104,6 +106,11 @@ def print_step_call(call):
                 else:
                     raise ValueError(f"Tool call response not found for id {t_id}")
                 with st.expander(f"{f_name}({arg0}, ...)"):
+                    if (
+                        f_name == "replace_lines_in_file"
+                        or f_name == "read_lines_from_file"
+                    ):
+                        st.write(f_args)
                     st.text(t_response["content"])
 
         def set_focus_step_closure():
