@@ -135,3 +135,90 @@ def run_command(command: str) -> str:
     if stdout:
         result += f"STDOUT\n{stdout}\n"
     return result
+
+
+@weave.op
+def read_lines_from_file(file_path: str, start_line: int) -> str:
+    """Read up to 500 lines from a file starting at a specific line number.
+
+    Args:
+        file_path: The path to the file.
+        start_line: The line number to start reading from (1-indexed).
+
+    Returns:
+        A string with each line prefixed by its line number.
+
+    Raises:
+        Exception: If the file does not exist or start_line is invalid.
+    """
+    if not os.path.exists(file_path):
+        raise Exception(f"File '{file_path}' does not exist.")
+
+    with open(file_path, "r") as file:
+        lines = file.readlines()
+
+    if start_line < 1 or start_line > len(lines):
+        raise Exception("Invalid start_line number.")
+
+    end_line = min(start_line + 500, len(lines) + 1)
+    result = ""
+
+    for i in range(start_line - 1, end_line - 1):
+        result += f"{i + 1}:{lines[i]}"
+
+    return result
+
+
+@weave.op
+def replace_lines_in_file(
+    file_path: str, start_line: int, end_line: int, new_lines: str
+) -> str:
+    """Replace lines in a file from start_line to end_line with new_lines. Changes are committed to the file.
+
+    Args:
+        file_path: The path to the file.
+        start_line: The starting line number for replacement (1-indexed).
+        end_line: The ending line number for replacement (exclusive, 1-indexed).
+        new_lines: The new lines to insert, as a single string.
+
+    Returns:
+        Success message, otherwise raises an exception.
+
+    Raises:
+        Exception: If the line range is invalid or file cannot be accessed.
+    """
+    lines = []
+    if os.path.exists(file_path):
+        with open(file_path, "r") as file:
+            lines = file.readlines()
+
+    if start_line < 1 or end_line < start_line or start_line > len(lines) + 1:
+        raise Exception("Invalid line range.")
+
+    # Adjust end_line if it exceeds the current number of lines
+    end_line = min(end_line, len(lines) + 1)
+
+    if not new_lines.endswith("\n"):
+        new_lines += "\n"
+
+    # Convert new_lines string into a list of lines
+    new_lines_list = new_lines.splitlines(keepends=True)
+
+    # Replace the specified line range
+    lines[start_line - 1 : end_line - 1] = new_lines_list
+
+    # Write the modified lines back to the file
+    with open(file_path, "w") as file:
+        file.writelines(lines)
+
+    # Determine the range for the output with a 5-line buffer
+    output_start = max(start_line - 6, 0)
+    output_end = min(
+        start_line - 1 + len(new_lines_list) + 6, len(lines)
+    )  # Calculate buffer correctly
+    result = ""
+
+    for i in range(output_start, output_end):
+        result += f"{i + 1}:{lines[i]}"
+
+    return result
