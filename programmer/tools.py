@@ -171,7 +171,7 @@ def read_lines_from_file(file_path: str, start_line: int) -> str:
 
 @weave.op
 def replace_lines_in_file(
-    file_path: str, start_line: int, end_line: int, new_lines: str
+    file_path: str, start_line: int, end_line: int, previous_lines: str, new_lines: str
 ) -> str:
     """Replace lines in a file from start_line to end_line with new_lines. Changes are committed to the file.
 
@@ -179,6 +179,7 @@ def replace_lines_in_file(
         file_path: The path to the file.
         start_line: The starting line number for replacement (1-indexed).
         end_line: The ending line number for replacement (exclusive, 1-indexed).
+        previous_lines: The previous lines to replace, as a single string. This must match the existing lines, or an exception is raised.
         new_lines: The new lines to insert, as a single string.
 
     Returns:
@@ -194,6 +195,10 @@ def replace_lines_in_file(
 
     if start_line < 1 or end_line < start_line or start_line > len(lines) + 1:
         raise Exception("Invalid line range.")
+
+    prev_line_split = [l + "\n" for l in previous_lines.splitlines()]
+    if not lines[start_line - 1 : end_line - 1] == prev_line_split:
+        raise Exception("Previous lines do not match.")
 
     # Adjust end_line if it exceeds the current number of lines
     end_line = min(end_line, len(lines) + 1)
