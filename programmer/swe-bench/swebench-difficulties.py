@@ -56,6 +56,9 @@ with open("problem.txt", "w") as f:
 print("FAIL_TO_PASS", example["FAIL_TO_PASS"])
 print("PASS_TO_PASS", example["PASS_TO_PASS"])
 
+print("PROBLEM\n", example["problem_statement"])
+print("HINT\n", example["hints_text"])
+
 print("PATCH\n", example["patch"])
 print("TEST_PATCH\n", example["test_patch"])
 
