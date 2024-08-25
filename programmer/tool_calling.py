@@ -43,6 +43,8 @@ def generate_json_schema(func: Callable) -> dict:
         param_type = type_hints[name].__name__ if name in type_hints else "string"
         if param_type == "str":
             param_type = "string"
+        elif param_type == "int":
+            param_type = "integer"
         param_desc = ""
 
         # Attempt to extract description from docstring
