@@ -23,7 +23,7 @@ filtered_df = df[
 
 # Display the count of filtered examples
 print("\nNumber of '<15 min fix' examples from astropy and sympy:")
-print(filtered_df["repo"].value_counts())
+print(filtered_df["repo"].value_counts())  # type: ignore
 
 print(filtered_df)
 example = filtered_df.loc[498]
