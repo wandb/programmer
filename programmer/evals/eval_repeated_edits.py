@@ -1,6 +1,7 @@
 import tempfile
 import os
 import time
+import concurrent.futures
 from typing import TypedDict, Callable
 from contextlib import contextmanager
 
@@ -8,18 +9,15 @@ import weave
 
 from ..agent import AgentState, Agent
 from ..config import agent, agent_replace
+from ..tools import tool_context
 
 
 # @pytest.fixture
 @contextmanager
 def tempdir():
-    with tempfile.TemporaryDirectory() as tempdir:
-        orig_dir = os.getcwd()
-        os.chdir(tempdir)
-        try:
-            yield tempdir
-        finally:
-            os.chdir(orig_dir)
+    with tempfile.TemporaryDirectory() as dir_:
+        with tool_context(dir_) as tc:
+            yield tc
 
 
 class EvalEditMemoryConfig(TypedDict):
@@ -58,14 +56,14 @@ def eval_edit_memory_step(
 
 @weave.op
 def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
-    with tempdir():
+    with tempdir() as ctx:
         lines = []
         n_alpha = 10
         num_per_alpha = config["n_lines"] // n_alpha
         for i in range(config["n_lines"]):
             lines.append(f"{chr(65 + i // num_per_alpha)}{i % num_per_alpha}")
 
-        with open("file.txt", "w") as f:
+        with open(ctx.resolve_path("file.txt"), "w") as f:
             prev_file_contents = "\n".join(lines)
             f.write(prev_file_contents)
 
@@ -99,7 +97,7 @@ def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
 
             lines = modify_expected_fn(lines)
 
-            with open("file.txt", "r") as f:
+            with open(ctx.resolve_path("file.txt"), "r") as f:
                 file_contents = f.read().strip()
                 if file_contents == prev_file_contents:
                     return {
@@ -145,14 +143,26 @@ def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
 
 
 @weave.op
-def run_trials(config: EvalEditMemoryConfig, agent: Agent, name: str, n_trials: int):
-    results = []
-    for i in range(n_trials):
+def run_trials(
+    config: EvalEditMemoryConfig,
+    agent: Agent,
+    name: str,
+    n_trials: int,
+    max_workers: int = 16,
+):
+    def run_single_trial():
         start_time = time.time()
         result = eval_edit_memory(config, agent)
         duration = time.time() - start_time
-        results.append({**result, "duration": duration})
-        print(f"{name} {i}: {result} {duration:.2f}s")
+        print(f"{name}: {result} {duration:.2f}s")
+        return {**result, "duration": duration}
+
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(run_single_trial) for _ in range(n_trials)]
+        results = [
+            future.result() for future in concurrent.futures.as_completed(futures)
+        ]
 
     return {
         "average_correct_steps": sum(result["correct_steps"] for result in results)

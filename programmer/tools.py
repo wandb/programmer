@@ -3,8 +3,41 @@ import json
 import os
 import subprocess
 import weave
+import contextlib
+from contextvars import ContextVar
 
 LENGTH_LIMIT = 30000
+
+
+class ToolContext:
+    def __init__(self, directory):
+        self.directory = os.path.abspath(directory)
+
+    def resolve_path(self, path):
+        return os.path.join(self.directory, path)
+
+
+# Create a ContextVar to store the current ToolContext
+current_context: ContextVar[ToolContext | None] = ContextVar(
+    "current_context", default=None
+)
+
+
+@contextlib.contextmanager
+def tool_context(directory):
+    context = ToolContext(directory)
+    token = current_context.set(context)
+    try:
+        yield context
+    finally:
+        current_context.reset(token)
+
+
+def get_current_context():
+    context = current_context.get()
+    if context is None:
+        return ToolContext(".")
+    return context
 
 
 def read_image_as_base64(path: str):
@@ -36,10 +69,11 @@ def view_image(path: str):
     Returns:
         A message indicating that the image was displayed successfully.
     """
-    # Run this to make sure it doesn't raise
-    base64_image = read_image_as_base64(path)
+    context = get_current_context()
+    full_path = context.resolve_path(path)
+    base64_image = read_image_as_base64(full_path)
 
-    return f"Image {path} displayed in next message.", {
+    return f"Image {full_path} displayed in next message.", {
         "role": "user",
         "content": [
             {
@@ -60,7 +94,9 @@ def list_files(directory: str) -> str:
     Returns:
         The list of files in the directory.
     """
-    result = json.dumps(os.listdir(directory))
+    context = get_current_context()
+    full_path = context.resolve_path(directory)
+    result = json.dumps(os.listdir(full_path))
     if len(result) > LENGTH_LIMIT:
         result = result[:LENGTH_LIMIT]
         result += "\n... (truncated)"
@@ -78,7 +114,9 @@ def write_to_file(path: str, content: str) -> str:
     Returns:
         A message indicating whether the file was written successfully.
     """
-    with open(path, "w") as f:
+    context = get_current_context()
+    full_path = context.resolve_path(path)
+    with open(full_path, "w") as f:
         f.write(content)
     return "File written successfully."
 
@@ -93,7 +131,9 @@ def read_from_file(path: str) -> str:
     Returns:
         The content of the file.
     """
-    with open(path, "r") as f:
+    context = get_current_context()
+    full_path = context.resolve_path(path)
+    with open(full_path, "r") as f:
         result = f.read()
         if len(result) > LENGTH_LIMIT:
             result = result[:LENGTH_LIMIT]
@@ -111,12 +151,14 @@ def run_command(command: str) -> str:
     Returns:
         The output of the command.
     """
+    context = get_current_context()
     completed_process = subprocess.run(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         shell=True,
+        cwd=context.directory,  # Set the working directory for the command
     )
     exit_code = completed_process.returncode
     stdout = completed_process.stdout.strip()
@@ -151,10 +193,12 @@ def read_lines_from_file(file_path: str, start_line: int) -> str:
     Raises:
         Exception: If the file does not exist or start_line is invalid.
     """
-    if not os.path.exists(file_path):
-        raise Exception(f"File '{file_path}' does not exist.")
+    context = get_current_context()
+    full_path = context.resolve_path(file_path)
+    if not os.path.exists(full_path):
+        raise Exception(f"File '{full_path}' does not exist.")
 
-    with open(file_path, "r") as file:
+    with open(full_path, "r") as file:
         lines = file.readlines()
 
     if start_line < 1 or start_line > len(lines):
@@ -192,9 +236,11 @@ def replace_lines_in_file(
     Raises:
         Exception: If the line range is invalid or file cannot be accessed.
     """
+    context = get_current_context()
+    full_path = context.resolve_path(file_path)
     lines = []
-    if os.path.exists(file_path):
-        with open(file_path, "r") as file:
+    if os.path.exists(full_path):
+        with open(full_path, "r") as file:
             lines = file.readlines()
 
     end_line = start_line + remove_line_count
@@ -219,7 +265,7 @@ def replace_lines_in_file(
     lines[start_line - 1 : end_line - 1] = new_lines_list
 
     # Write the modified lines back to the file
-    with open(file_path, "w") as file:
+    with open(full_path, "w") as file:
         file.writelines(lines)
 
     # Determine the range for the output with a 5-line buffer
