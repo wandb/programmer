@@ -165,3 +165,48 @@ class Objs:
 
 def expand_refs(wc: WeaveClient, refs: Sequence[str]):
     return Objs(wc, refs)
+
+
+def call(wc: WeaveClient, call_id: str):
+    """Return a raw Weave call."""
+    response = wc.server.calls_query(
+        CallsQueryReq(
+            project_id=wc._project_id(),
+            filter=CallsFilter(call_ids=[call_id]),
+        )
+    )
+    return response.calls[0].model_dump()
+
+
+def expand_json_refs(wc: WeaveClient, json: dict):
+    """Expand any nested refs in a compound python value"""
+
+    def find_refs(obj):
+        refs = []
+        if isinstance(obj, dict):
+            for value in obj.values():
+                refs.extend(find_refs(value))
+        elif isinstance(obj, list):
+            for item in obj:
+                refs.extend(find_refs(item))
+        elif isinstance(obj, str) and obj.startswith("weave://"):
+            refs.append(obj)
+        return refs
+
+    def replace_refs(obj, ref_values):
+        if isinstance(obj, dict):
+            return {k: replace_refs(v, ref_values) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [replace_refs(item, ref_values) for item in obj]
+        elif isinstance(obj, str) and obj.startswith("weave://"):
+            return ref_values.get(obj, obj)
+        return obj
+
+    refs = find_refs(json)
+    if not refs:
+        return json
+
+    ref_values = _server_refs(wc, refs)
+    ref_dict = {ref: value for ref, value in zip(refs, ref_values)}
+
+    return replace_refs(json, ref_dict)
