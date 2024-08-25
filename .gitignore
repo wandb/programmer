@@ -1,5 +1,6 @@
 weave.db
 __pycache__
+*-checkpoint.ipynb
 dist/
 programmer.egg-info
 
