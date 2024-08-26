@@ -22,6 +22,26 @@ agent = Agent(
     tools=[list_files, write_to_file, read_from_file, run_command, view_image],
 )
 
+agent_claude_replace = Agent(
+    model_name="claude-3-5-sonnet-20240620",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    tools=[
+        list_files,
+        run_command,
+        view_image,
+        read_lines_from_file,
+        replace_lines_in_file,
+    ],
+)
+
+agent_claude = Agent(
+    model_name="claude-3-5-sonnet-20240620",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    tools=[list_files, write_to_file, read_from_file, run_command, view_image],
+)
+
 # This still doesn't work as well. gpt-4o will get stuck in loops when it tries to
 # do multiple file edits in one call, for example.
 agent_replace = Agent(
