@@ -1,7 +1,6 @@
 from typing import Any, Optional, Union
 from pydantic import Field
-from openai import OpenAI
-from openai._types import NotGiven
+import litellm
 from openai.types.chat import (
     ChatCompletionMessageParam,
 )
@@ -40,6 +39,15 @@ class AgentState(weave.Object):
     env_snapshot_key: Optional[EnvironmentSnapshotKey] = None
 
 
+def unweavify(v: Any) -> Any:
+    if isinstance(v, list):
+        return [unweavify(m) for m in v]
+    elif isinstance(v, dict):
+        return {k: unweavify(v) for k, v in v.items()}
+    else:
+        return v
+
+
 class Agent(weave.Object):
     model_name: str
     temperature: float
@@ -68,14 +76,18 @@ class Agent(weave.Object):
         messages += state.history
 
         # make type checkers happy by passing NotGiven instead of None
-        tools = NotGiven()
+        tools = None
         if self.tools:
             tools = chat_call_tool_params(self.tools)
 
         Console.chat_response_start()
 
-        client = OpenAI()
-        stream = client.chat.completions.create(
+        # Workaround a weave bug, litellm tries to deepcopy messages which has
+        # a TraceDict. TraceDict is not pickable, because it has a reference to
+        # a weave server, which has a lock.
+        messages = unweavify(messages)
+
+        stream = litellm.completion(
             model=self.model_name,
             temperature=self.temperature,
             messages=messages,
@@ -83,7 +95,7 @@ class Agent(weave.Object):
             stream=True,
             timeout=60,
         )
-        wrapped_stream = OpenAIStream(stream)
+        wrapped_stream = OpenAIStream(stream)  # type: ignore
         for chunk in wrapped_stream:
             if chunk.choices[0].delta.content:
                 Console.chat_message_content_delta(chunk.choices[0].delta.content)

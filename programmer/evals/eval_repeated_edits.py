@@ -6,9 +6,10 @@ from typing import TypedDict, Callable
 from contextlib import contextmanager
 
 import weave
+from weave import call_context
 
 from ..agent import AgentState, Agent
-from ..config import agent, agent_replace
+from ..config import agent, agent_claude, agent_claude_replace, agent_replace
 from ..tools import tool_context
 
 
@@ -150,12 +151,17 @@ def run_trials(
     n_trials: int,
     max_workers: int = 16,
 ):
+    current_call = call_context.get_current_call()
+    if current_call is None:
+        raise Exception("Should not happen, no current call")
+
     def run_single_trial():
-        start_time = time.time()
-        result = eval_edit_memory(config, agent)
-        duration = time.time() - start_time
-        print(f"{name}: {result} {duration:.2f}s")
-        return {**result, "duration": duration}
+        with call_context.current_call(current_call):
+            start_time = time.time()
+            result = eval_edit_memory(config, agent)
+            duration = time.time() - start_time
+            print(f"{name}: {result} {duration:.2f}s")
+            return {**result, "duration": duration}
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -179,13 +185,15 @@ if __name__ == "__main__":
     weave.init("programmerdev-eval-fine")
     agent_specs = [
         # (agent, "agent"),
-        (agent_replace, "agent_replace"),
+        # (agent_claude, "agent_claude"),
+        (agent_claude_replace, "agent_claude_replace"),
+        # (agent_replace, "agent_replace"),
     ]
     config = EvalEditMemoryConfig(n_lines=100)
     n_trials = 10
     results = {}
     for agent, name in agent_specs:
-        results[name] = run_trials(config, agent, name, n_trials)
+        results[name] = run_trials(config, agent, name, n_trials, max_workers=5)
     from rich import print
 
     print(results)
