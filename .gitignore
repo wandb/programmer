@@ -7,3 +7,4 @@ programmer.egg-info
 # PyPI uploads
 .pypirc
 .programmer
+.python-version
