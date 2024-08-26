@@ -1,7 +1,6 @@
 from typing import Any, Optional, Union
 from pydantic import Field
 import litellm
-from openai._types import NotGiven
 from openai.types.chat import (
     ChatCompletionMessageParam,
 )
@@ -77,7 +76,7 @@ class Agent(weave.Object):
         messages += state.history
 
         # make type checkers happy by passing NotGiven instead of None
-        tools = NotGiven()
+        tools = None
         if self.tools:
             tools = chat_call_tool_params(self.tools)
 
@@ -96,7 +95,7 @@ class Agent(weave.Object):
             stream=True,
             timeout=60,
         )
-        wrapped_stream = OpenAIStream(stream)
+        wrapped_stream = OpenAIStream(stream)  # type: ignore
         for chunk in wrapped_stream:
             if chunk.choices[0].delta.content:
                 Console.chat_message_content_delta(chunk.choices[0].delta.content)

@@ -152,6 +152,8 @@ def run_trials(
     max_workers: int = 16,
 ):
     current_call = call_context.get_current_call()
+    if current_call is None:
+        raise Exception("Should not happen, no current call")
 
     def run_single_trial():
         with call_context.current_call(current_call):
