@@ -82,7 +82,7 @@ def session(agent_state: AgentState):
             agent_state = user_input_step(agent_state)
 
 
-def main():
+def programmer():
     parser = argparse.ArgumentParser(description="Programmer")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -161,6 +161,13 @@ def main():
     )
 
     session(state)
+
+
+def main():
+    try:
+        programmer()
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
