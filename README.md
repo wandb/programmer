@@ -70,7 +70,7 @@ Settings are stored in .programmer/settings
 programmer settings set weave_logging <value>
   - off: no logging
   - local: log to local sqlite db
-  - cloudd: log to weave cloud at wandb.ai
+  - cloud: log to weave cloud at wandb.ai
 
 programmer settings set git_tracking <value>
   - off: no git tracking
