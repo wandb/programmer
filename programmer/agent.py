@@ -66,9 +66,10 @@ class Agent(weave.Object):
             The new state of the environment.
         """
         Console.step_start("agent", "green")
-        ref = weave.obj_ref(state)
-        if ref:
-            print("state ref:", ref.uri())
+        # Printing this is ugly
+        # ref = weave.obj_ref(state)
+        # if ref:
+        #     print("state ref:", ref.uri())
 
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.system_message},

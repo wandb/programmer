@@ -34,9 +34,10 @@ def get_user_input():
 @weave.op
 def user_input_step(state: AgentState) -> AgentState:
     Console.step_start("user_input", "purple")
-    ref = weave.obj_ref(state)
-    if ref:
-        print("state ref:", ref.uri())
+    # Printing this is ugly
+    # ref = weave.obj_ref(state)
+    # if ref:
+    #     print("state ref:", ref.uri())
     user_input = get_user_input()
     environment = get_current_environment()
     history = state.history + [
