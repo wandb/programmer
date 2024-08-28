@@ -4,6 +4,7 @@ import os
 import subprocess
 import weave
 import contextlib
+import shlex
 from contextvars import ContextVar
 from typing import Protocol, Union, TypedDict, Optional
 import requests
@@ -13,7 +14,6 @@ LENGTH_LIMIT = 30000
 # TODO:
 # - get rid of resolve_path
 # - must return FileNotFoundError in read_file in Remote
-# - ensure we have correct truncation
 
 
 class RunCommandResult(TypedDict):
@@ -67,10 +67,11 @@ class LocalToolContext(ToolContext):
 
 
 class RemoteContainerToolContext(ToolContext):
-    def __init__(self, base_url: str, directory: str):
+    def __init__(self, base_url: str, directory: str, command_prefix: str):
         self.base_url = base_url
         self.container_id = None
         self.directory = directory
+        self.command_prefix = command_prefix
 
     def start_container(self, image_id):
         response = requests.post(
@@ -106,6 +107,8 @@ class RemoteContainerToolContext(ToolContext):
             raise Exception(f"Failed to read file: {response.text}")
 
     def run_command(self, command: str) -> RunCommandResult:
+        command = self.command_prefix + command
+        command = f"bash -c {shlex.quote(command)}"
         response = requests.post(
             f"{self.base_url}/container/run",
             json={

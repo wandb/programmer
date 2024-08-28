@@ -190,8 +190,13 @@ def main():
         ],
     )
 
-    tc = RemoteContainerToolContext("http://localhost:8000", "/testbed")
+    tc = RemoteContainerToolContext(
+        "http://localhost:8000",
+        "/testbed",
+        "source /opt/miniconda3/bin/activate && conda activate testbed && ",
+    )
     tc.start_container(f"sweb.eval.x86_64.{instance_id}")
+    tc.run_command("")
 
     with tool_context(tc):
         agent_replace.run(state)
