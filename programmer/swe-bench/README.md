@@ -1,8 +1,9 @@
 # SWE Bench stuff
 
-## environment for running against remote swe-bench containers
+## Build SWE-bench images
 
-on remote machine, build swe-bench
+First do setup (below) then run this command to build all the images. --cache_level instance tells the script not to delete the instance images, which are what we want to use with container-manager.
+
 ```
 python -m swebench.harness.run_evaluation \
      --predictions_path gold \
@@ -10,41 +11,6 @@ python -m swebench.harness.run_evaluation \
      --run_id validate-gold \
      --dataset_name princeton-nlp/SWE-bench_Verified \
      --cache_level instance
-```
-
-or maybe this (haven't tried yet)
-```
-python -m swebench.harness.prepare_images \
-     --max_workers 24 \
-     --dataset_name princeton-nlp/SWE-bench_Verified
-```
-
-put cmserver.py on remote machine
-```
-gcloud compute scp --zone "us-west1-a" --project "weave-support-367421" cmserver.py programmer-benchmark:~/
-```
-
-on remote machine
-
-(just 1 worker for now, there's global state)
-```
-uvicorn cmserver:app --host 0.0.0.0 --port 8000 --workers 1
-```
-
-tunnel from local machine to remote
-```
-gcloud compute ssh --zone "us-west1-a" "programmer-benchmark" --project "weave-support-367421"  -- -NL 8000:localhost:8000
-```
-
-local machine
-```
-python checkserver.py
-```
-
-result on remote machine should be there are no more running containers when done
-
-```
-docker ps -a
 ```
 
 
