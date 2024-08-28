@@ -8,8 +8,6 @@ from docker.errors import NotFound
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# - need to use demux to get stderr/stdout
-
 
 # DockerContainerManager class
 class DockerContainerManager:
