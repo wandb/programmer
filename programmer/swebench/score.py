@@ -13,25 +13,31 @@ from swebench.harness.constants import (
 from ..tools import RemoteContainerToolContext
 
 
-def score_swebench(
-    tc: RemoteContainerToolContext, instance: SWEbenchInstance, patch: str
-):
+def score_swebench(instance: SWEbenchInstance, model_output):
+    patch = model_output["answer"]
+    tc = RemoteContainerToolContext(
+        "http://localhost:8000",
+        "/testbed",
+        "source /opt/miniconda3/bin/activate && conda activate testbed && ",
+    )
 
     result: dict[str, Any] = {"patch_successfully_applied": False, "resolved": False}
 
     ts = make_test_spec(instance)
-    tc.start_container(f"sweb.eval.x86_64.{ts.instance_id}")
-    print("EVAL SCRIPT\n", ts.eval_script)
+    container_id = f"sweb.eval.x86_64.{ts.instance_id}"
+    with tc.context(container_id):
+        print("EVAL SCRIPT\n", ts.eval_script)
 
-    tc.write_file("/tmp/patch.diff", patch)
-    patch_result = tc.run_command("git apply -v /tmp/patch.diff")
-    if patch_result["exit_code"] == 0:
-        result["patch_successfully_applied"] = True
-    print("PATCH RESULT\n", patch_result)
+        tc.write_file("/tmp/patch.diff", patch)
+        patch_result = tc.run_command("git apply -v /tmp/patch.diff")
+        if patch_result["exit_code"] == 0:
+            result["patch_successfully_applied"] = True
+        print("PATCH RESULT\n", patch_result)
 
-    tc.write_file("/eval.sh", ts.eval_script)
-    test_command_results = tc.run_command("chmod +x /eval.sh && /eval.sh")
-    tc_output = test_command_results["output"]
+        tc.write_file("/eval.sh", ts.eval_script)
+        test_command_results = tc.run_command("chmod +x /eval.sh && /eval.sh")
+        tc_output = test_command_results["output"]
+
     repo = "-".join(
         ts.instance_id.replace("__", "/").split("-")[:-1]
     )  # e.g. scikit-learn/scikit-learn

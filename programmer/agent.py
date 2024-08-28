@@ -1,6 +1,7 @@
 from typing import Any, Optional, Union
 from pydantic import Field
 import litellm
+import time
 from openai.types.chat import (
     ChatCompletionMessageParam,
 )
@@ -12,6 +13,10 @@ from weave.flow.chat_util import OpenAIStream
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
 from .environment import get_current_environment, EnvironmentSnapshotKey
+
+
+class TimeLimitExceeded(Exception):
+    pass
 
 
 def get_commit_message(history: list[Any]) -> str:
@@ -125,9 +130,14 @@ class Agent(weave.Object):
         return AgentState(history=new_history, env_snapshot_key=snapshot_key)
 
     @weave.op()
-    def run(self, state: AgentState):
+    def run(self, state: AgentState, max_runtime_seconds: int = 60):
+        start_time = time.time()
         while True:
             last_message = state.history[-1]
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
                 return state
             state = self.step(state)
+            if time.time() - start_time > max_runtime_seconds:
+                raise TimeLimitExceeded(
+                    f"Agent runtime exceeded {max_runtime_seconds}s"
+                )

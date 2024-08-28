@@ -6,6 +6,7 @@ import weave
 import contextlib
 import shlex
 from contextvars import ContextVar
+from contextlib import contextmanager
 from typing import Protocol, Union, TypedDict, Optional
 import requests
 
@@ -73,6 +74,15 @@ class RemoteContainerToolContext(ToolContext):
         self.directory = directory
         self.command_prefix = command_prefix
 
+    @contextmanager
+    def context(self, image_id: str):
+        self.start_container(image_id)
+        try:
+            with tool_context(self):
+                yield
+        finally:
+            self.stop_container()
+
     def start_container(self, image_id):
         response = requests.post(
             f"{self.base_url}/container/start", json={"image_id": image_id}
@@ -81,6 +91,16 @@ class RemoteContainerToolContext(ToolContext):
             self.container_id = response.json().get("container_id")
         else:
             print(f"Failed to start container: {response.text}")
+
+    def stop_container(self):
+        response = requests.post(
+            f"{self.base_url}/container/stop",
+            json={"container_id": self.container_id, "delete": True},
+        )
+        if response.status_code == 200:
+            self.container_id = None
+        else:
+            print(f"Failed to stop container: {response.text}")
 
     def write_file(self, path: str, content: str) -> None:
         full_path = os.path.join(self.directory, path)
