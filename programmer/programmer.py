@@ -12,7 +12,7 @@ import weave
 
 from .agent import AgentState, get_commit_message
 from .console import Console
-from .config import agent, agent_replace
+from .config import agent
 from .environment import (
     environment_session,
     restore_environment,
@@ -22,7 +22,6 @@ from .environment import (
 )
 from .weave_next.api import init_local_client
 from .settings_manager import SettingsManager
-from .tools import RemoteContainerToolContext, tool_context
 
 from .git import GitRepo
 
@@ -79,7 +78,7 @@ def session(agent_state: AgentState):
             history=agent_state.history, env_snapshot_key=env.make_snapshot(msg)
         )
         while True:
-            agent_state = agent_replace.run(agent_state)
+            agent_state = agent.run(agent_state)
             agent_state = user_input_step(agent_state)
 
 
@@ -146,35 +145,11 @@ def main():
         if state.env_snapshot_key:
             environment = restore_environment(state.env_snapshot_key)
 
-    # if args.command == "prompt":
-    #     initial_prompt = " ".join(args.prompt_args)
-    #     print("Initial prompt:", initial_prompt)
-    # else:
-    #     initial_prompt = input("Initial prompt: ")
-
-    instance_id = "sympy__sympy-24661"
-    problem_statement = (
-"""
-The evaluate=False parameter to `parse_expr` is ignored for relationals
-See also #22305 and #22098
-
-This inequality evaluates even though `evaluate=False` is given:
-```python
-In [14]: parse_expr('1 < 2', evaluate=False)
-Out[14]: True
-```
-The result that should be returned is:
-```python
-In [15]: Lt(1, 2, evaluate=False)
-Out[15]: 1 < 2
-```
-"""
-    )
-    initial_prompt = f"""You are in a checkout of the a git repo. Please identify and fix the issue described in the problem statement.
-
-<problem_statement>
-{problem_statement}
-</problem_statement>"""
+    if args.command == "prompt":
+        initial_prompt = " ".join(args.prompt_args)
+        print("Initial prompt:", initial_prompt)
+    else:
+        initial_prompt = input("Initial prompt: ")
 
     state = AgentState(
         history=[
@@ -185,11 +160,7 @@ Out[15]: 1 < 2
         ],
     )
 
-    tc = RemoteContainerToolContext('http://localhost:8000')
-    tc.start_container(f'sweb.eval.x86_64.{instance_id}')
-
-    with tool_context(tc):
-        session(state)
+    session(state)
 
 
 if __name__ == "__main__":
