@@ -20,7 +20,7 @@ from .environment import (
 )
 from .weave_next.api import init_local_client
 from .settings_manager import SettingsManager
-from .tools import RemoteContainerToolContext, tool_context
+from .tools import RemoteContainerToolContext, tool_context, ToolContext
 
 from .git import GitRepo
 
@@ -89,6 +89,52 @@ def session(agent_state: AgentState):
             except ExitException as e:
                 print("Exiting")
                 return
+
+
+def eval_swebench(tc: RemoteContainerToolContext, instance, patch):
+    from swebench.harness.test_spec import make_test_spec
+    from swebench.harness.log_parsers import MAP_REPO_TO_PARSER
+    from swebench.harness.grading import get_eval_tests_report, get_resolution_status
+    from swebench.harness.constants import (
+        FAIL_TO_PASS,
+        KEY_INSTANCE_ID,
+        PASS_TO_PASS,
+        ResolvedStatus,
+    )
+
+    result = {"patch_successfully_applied": False, "resolved": False}
+
+    ts = make_test_spec(instance)
+    tc.start_container(f"sweb.eval.x86_64.{instance.instance_id}")
+    print("EVAL SCRIPT\n", ts.eval_script)
+
+    tc.write_file("/tmp/patch.diff", patch)
+    patch_result = tc.run_command("git apply -v /tmp/patch.diff")
+    if patch_result["exit_code"] == 0:
+        result["patch_successfully_applied"] = True
+    print("PATCH RESULT\n", patch_result)
+
+    tc.write_file("/eval.sh", ts.eval_script)
+    test_command_results = tc.run_command("chmod +x /eval.sh && /eval.sh")
+    tc_output = test_command_results["output"]
+    repo = "-".join(
+        instance.instance_id.replace("__", "/").split("-")[:-1]
+    )  # e.g. scikit-learn/scikit-learn
+    log_parser = MAP_REPO_TO_PARSER[repo]
+    test_name_to_passfail = log_parser(tc_output)
+
+    eval_ref = {
+        KEY_INSTANCE_ID: ts.instance_id,
+        FAIL_TO_PASS: ts.FAIL_TO_PASS,
+        PASS_TO_PASS: ts.PASS_TO_PASS,
+    }
+
+    report = get_eval_tests_report(test_name_to_passfail, eval_ref)
+    resolved = get_resolution_status(report) == ResolvedStatus.FULL.value
+
+    result.update({"resolved": resolved, "tests_status": report})
+
+    return result
 
 
 def main():
@@ -175,6 +221,12 @@ def main():
     print("SOLUTION\n", instance["patch"])
     print()
 
+    tc = RemoteContainerToolContext(
+        "http://localhost:8000",
+        "/testbed",
+        "source /opt/miniconda3/bin/activate && conda activate testbed && ",
+    )
+
     initial_prompt = f"""You are in a checkout of the a git repo. Please identify and fix the issue described in the problem statement.
 
 <problem_statement>
@@ -190,11 +242,6 @@ def main():
         ],
     )
 
-    tc = RemoteContainerToolContext(
-        "http://localhost:8000",
-        "/testbed",
-        "source /opt/miniconda3/bin/activate && conda activate testbed && ",
-    )
     tc.start_container(f"sweb.eval.x86_64.{instance_id}")
     tc.run_command("")
 
@@ -206,6 +253,13 @@ def main():
     print()
     answer = tc.run_command("git diff")
     print("ANSWER\n", answer)
+
+    print()
+    print("EVALUATING")
+    print()
+    report = eval_swebench(tc, instance, answer["output"])
+    print("REPORT")
+    print(report)
 
 
 if __name__ == "__main__":
