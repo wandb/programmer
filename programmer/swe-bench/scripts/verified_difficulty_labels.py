@@ -1,5 +1,6 @@
 # Quick script for viewing swebench examples against
 # annotated difficulties.
+# TODO: update for new file paths (in ../data)
 
 import pandas as pd
 import textwrap
