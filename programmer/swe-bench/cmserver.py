@@ -4,10 +4,11 @@ from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 import docker
+from docker.errors import NotFound
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# TODO: need to use demux to get stderr/stdout
+# - need to use demux to get stderr/stdout
 
 
 # DockerContainerManager class
@@ -36,7 +37,10 @@ class DockerContainerManager:
         exec_result = await loop.run_in_executor(
             self.executor, self._exec_run, container_id, command, workdir
         )
-        return exec_result.output.decode("utf-8")
+        return {
+            "exit_code": exec_result.exit_code,
+            "output": exec_result.output.decode("utf-8"),
+        }
 
     def _exec_run(self, container_id: str, command: str, workdir: str):
         container = self._get_container(container_id)
@@ -72,7 +76,10 @@ class DockerContainerManager:
         file_content.seek(0)
         with tarfile.open(fileobj=file_content) as tar:
             member = tar.getmembers()[0]
-            file_data = tar.extractfile(member).read()
+            extract_result = tar.extractfile(member)
+            if extract_result is None:
+                raise Exception(f"Unexpected tar.extractfile result for: {file_path}")
+            file_data = extract_result.read()
         return file_data.decode("utf-8")
 
     async def stop_container(self, container_id: str, delete: bool = False):
@@ -126,10 +133,10 @@ async def start_container(request: StartContainerRequest):
 @app.post("/container/run")
 async def run_command(request: CommandRequest):
     try:
-        output = await container_manager.run_command(
+        result = await container_manager.run_command(
             request.container_id, request.workdir, request.command
         )
-        return {"output": output}
+        return {"exit_code": result["exit_code"], "output": result["output"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -141,6 +148,8 @@ async def write_file(request: FileRequest):
             request.container_id, request.file_path, request.file_content
         )
         return {"status": "file written"}
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -152,6 +161,8 @@ async def read_file(request: FilePathRequest):
             request.container_id, request.file_path
         )
         return {"file_content": file_content}
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

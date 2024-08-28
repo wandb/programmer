@@ -21,7 +21,7 @@ def run_command(container_id: str, workdir: str, command: str):
         json={"container_id": container_id, "workdir": workdir, "command": command},
     )
     if response.status_code == 200:
-        return response.json().get("output")
+        return response.json()
     else:
         print(f"Failed to run command: {response.text}")
         return None

@@ -6,8 +6,6 @@ import subprocess
 from rich import print
 from rich.console import Console
 
-from typing import Any, Optional
-
 import weave
 
 from .agent import AgentState, get_commit_message
@@ -192,7 +190,7 @@ def main():
         ],
     )
 
-    tc = RemoteContainerToolContext("http://localhost:8000")
+    tc = RemoteContainerToolContext("http://localhost:8000", "/testbed")
     tc.start_container(f"sweb.eval.x86_64.{instance_id}")
 
     with tool_context(tc):

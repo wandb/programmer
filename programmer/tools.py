@@ -5,7 +5,7 @@ import subprocess
 import weave
 import contextlib
 from contextvars import ContextVar
-from typing import Protocol, Union
+from typing import Protocol, Union, TypedDict, Optional
 import requests
 
 LENGTH_LIMIT = 30000
@@ -13,6 +13,12 @@ LENGTH_LIMIT = 30000
 # TODO:
 # - get rid of resolve_path
 # - must return FileNotFoundError in read_file in Remote
+# - ensure we have correct truncation
+
+
+class RunCommandResult(TypedDict):
+    exit_code: int
+    output: str
 
 
 class ToolContext(Protocol):
@@ -20,7 +26,7 @@ class ToolContext(Protocol):
 
     def read_file(self, path: str) -> str: ...
 
-    def run_command(self, command: str) -> str: ...
+    def run_command(self, command: str) -> RunCommandResult: ...
 
     def resolve_path(self, path: str) -> str: ...
 
@@ -39,41 +45,32 @@ class LocalToolContext(ToolContext):
         with open(full_path, "r") as f:
             return f.read()
 
-    def run_command(self, command: str) -> str:
+    def run_command(self, command: str) -> RunCommandResult:
         completed_process = subprocess.run(
             command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             shell=True,
             cwd=self.directory,
         )
         exit_code = completed_process.returncode
-        stdout = completed_process.stdout.strip()
-        stderr = completed_process.stderr.strip()
+        output = completed_process.stdout.strip()
 
-        if len(stdout) > LENGTH_LIMIT:
-            stdout = stdout[:LENGTH_LIMIT]
-            stdout += "\n... (truncated)"
-        if len(stderr) > LENGTH_LIMIT:
-            stderr = stderr[:LENGTH_LIMIT]
-            stderr += "\n... (truncated)"
-
-        result = f"Exit code: {exit_code}\n"
-        if stderr:
-            result += f"STDERR\n{stderr}\n"
-        if stdout:
-            result += f"STDOUT\n{stdout}\n"
-        return result
+        return {
+            "exit_code": exit_code,
+            "output": output,
+        }
 
     def resolve_path(self, path: str) -> str:
         return os.path.join(self.directory, path)
 
 
 class RemoteContainerToolContext(ToolContext):
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, directory: str):
         self.base_url = base_url
         self.container_id = None
+        self.directory = directory
 
     def start_container(self, image_id):
         response = requests.post(
@@ -85,11 +82,12 @@ class RemoteContainerToolContext(ToolContext):
             print(f"Failed to start container: {response.text}")
 
     def write_file(self, path: str, content: str) -> None:
+        full_path = os.path.join(self.directory, path)
         response = requests.post(
             f"{self.base_url}/container/write_file",
             json={
                 "container_id": self.container_id,
-                "file_path": path,
+                "file_path": full_path,
                 "file_content": content,
             },
         )
@@ -97,22 +95,31 @@ class RemoteContainerToolContext(ToolContext):
             raise Exception(f"Failed to write file: {response.text}")
 
     def read_file(self, path: str) -> str:
+        full_path = os.path.join(self.directory, path)
         response = requests.post(
             f"{self.base_url}/container/read_file",
-            json={"container_id": self.container_id, "file_path": path},
+            json={"container_id": self.container_id, "file_path": full_path},
         )
         if response.status_code == 200:
             return response.json().get("file_content")
         else:
             raise Exception(f"Failed to read file: {response.text}")
 
-    def run_command(self, command: str) -> str:
+    def run_command(self, command: str) -> RunCommandResult:
         response = requests.post(
             f"{self.base_url}/container/run",
-            json={"container_id": self.container_id, "command": command},
+            json={
+                "container_id": self.container_id,
+                "workdir": self.directory,
+                "command": command,
+            },
         )
         if response.status_code == 200:
-            return response.json().get("output")
+            json = response.json()
+            return {
+                "exit_code": json["exit_code"],
+                "output": json["output"],
+            }
         else:
             raise Exception(f"Failed to run command: {response.text}")
 
@@ -121,9 +128,9 @@ class RemoteContainerToolContext(ToolContext):
 
 
 # Create a ContextVar to store the current ToolContext
-current_context: ContextVar[Union[LocalToolContext, RemoteContainerToolContext]] = (
-    ContextVar("current_context", default=None)
-)
+current_context: ContextVar[
+    Optional[Union[LocalToolContext, RemoteContainerToolContext]]
+] = ContextVar("current_context", default=None)
 
 
 @contextlib.contextmanager
@@ -199,11 +206,14 @@ def list_files(directory: str) -> str:
     context = get_current_context()
     # full_path = context.resolve_path(directory)
     result = context.run_command(f"ls {directory}")
-    # result = json.dumps(os.listdir(full_path))
-    if len(result) > LENGTH_LIMIT:
-        result = result[:LENGTH_LIMIT]
-        result += "\n... (truncated)"
-    return result
+    exit_code = result["exit_code"]
+    output = result["output"]
+    if exit_code != 0:
+        raise Exception(f"Failed to list files: {output}")
+    if len(output) > LENGTH_LIMIT:
+        output = output[:LENGTH_LIMIT]
+        output += "\n... (truncated)"
+    return output
 
 
 @weave.op()
@@ -255,9 +265,17 @@ def run_command(command: str) -> str:
     """
     context = get_current_context()
     result = context.run_command(command)
-    if len(result) > LENGTH_LIMIT:
-        result = result[:LENGTH_LIMIT]
-        result += "\n... (truncated)"
+
+    exit_code = result["exit_code"]
+    output = result["output"]
+
+    if len(output) > LENGTH_LIMIT:
+        output = output[:LENGTH_LIMIT]
+        output += "\n... (truncated)"
+
+    result = f"Exit code: {exit_code}\n"
+    if output:
+        result += f"OUTPUT\n{output}\n"
     return result
 
 
