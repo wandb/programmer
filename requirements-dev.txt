@@ -1,1 +1,7 @@
+setuptools
+wheel
 pytest
+pyright
+fastapi
+docker
+swebench

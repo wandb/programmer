@@ -10,9 +10,9 @@ from typing import Any, Optional
 
 import weave
 
-from .agent import AgentState, get_commit_message
+from .agent import Agent, AgentState, get_commit_message
 from .console import Console
-from .config import agent
+from .config import agent_replace
 from .environment import (
     environment_session,
     restore_environment,
@@ -34,9 +34,10 @@ def get_user_input():
 @weave.op
 def user_input_step(state: AgentState) -> AgentState:
     Console.step_start("user_input", "purple")
-    ref = weave.obj_ref(state)
-    if ref:
-        print("state ref:", ref.uri())
+    # Printing this is ugly
+    # ref = weave.obj_ref(state)
+    # if ref:
+    #     print("state ref:", ref.uri())
     user_input = get_user_input()
     environment = get_current_environment()
     history = state.history + [
@@ -63,7 +64,7 @@ def make_environment():
 
 
 @weave.op
-def session(agent_state: AgentState):
+def session(agent: Agent, agent_state: AgentState):
     call = weave.get_current_call()
 
     session_id = None
@@ -160,7 +161,7 @@ def programmer():
         ],
     )
 
-    session(state)
+    session(agent_replace, state)
 
 
 def main():

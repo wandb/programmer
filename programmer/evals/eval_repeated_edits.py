@@ -10,14 +10,14 @@ from weave import call_context
 
 from ..agent import AgentState, Agent
 from ..config import agent, agent_claude, agent_claude_replace, agent_replace
-from ..tools import tool_context
+from ..tools import tool_context, LocalToolContext
 
 
 # @pytest.fixture
 @contextmanager
 def tempdir():
     with tempfile.TemporaryDirectory() as dir_:
-        with tool_context(dir_) as tc:
+        with tool_context(LocalToolContext(dir_)) as tc:
             yield tc
 
 

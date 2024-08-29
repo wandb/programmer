@@ -1,0 +1,4 @@
+weave
+pandas
+fsspec
+huggingface_hub
