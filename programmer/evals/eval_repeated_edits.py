@@ -10,7 +10,7 @@ from weave.trace import call_context
 
 from ..agent import AgentState, Agent
 from ..config import agent, agent_replace, agent_splice
-from ..tools import tool_context, LocalToolContext
+from ..tools import tool_context, LocalToolContext, get_current_context
 
 # NOTES
 # - Try with other LLM and tool configs now that I have this test
@@ -38,16 +38,16 @@ class EvalEditMemoryConfig(TypedDict):
 @weave.op
 def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
     with tempdir() as ctx:
-        lines = []
+        expected_lines = []
         n_alpha = 10
         num_per_alpha = config["n_lines"] // n_alpha
         for attempt in range(config["n_lines"]):
-            lines.append(
+            expected_lines.append(
                 f"{chr(65 + attempt // num_per_alpha)}{attempt % num_per_alpha}"
             )
 
         with open(ctx.resolve_path("file.txt"), "w") as f:
-            prev_file_contents = "\n".join(lines)
+            prev_file_contents = "\n".join(expected_lines)
             f.write(prev_file_contents)
 
         task_correct = False
@@ -100,79 +100,19 @@ def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
                 ),
             ]
         ):
-            print(f"*** TASK: {task_idx}, {prompt}")
-            state = AgentState(
-                history=state.history
-                + [
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
+            expected_lines = modify_expected_fn(expected_lines)
+            run_task_result = run_task(
+                config,
+                agent,
+                state,
+                expected_lines,
+                task_idx,
+                prompt,
             )
-            lines = modify_expected_fn(lines)
-            task_info = {"task_idx": task_idx, "attempts": []}
-            task_correct = False
+            state = run_task_result["state"]
+            task_info = run_task_result["task_info"]
             results["task_info"].append(task_info)
-            for attempt in range(5):
-                attempt_info: dict = {"attempt_idx": attempt}
-                task_info["attempts"].append(attempt_info)
-
-                run_result, call = agent.run.call(
-                    agent, state, max_runtime_seconds=config["run_timeout_seconds"]
-                )
-                if call.exception is not None:
-                    print("*** EXCEPTION ***")
-                    print(call.exception)
-                    attempt_info["stop_reason"] = "exception"
-                    continue
-                attempt_info["stop_reason"] = run_result["stop_reason"]
-                stop_reason = run_result["stop_reason"]
-                if stop_reason == "time_limit_exceeded":
-                    print("*** TIME LIMIT EXCEEDED ***")
-
-                next_state = run_result["state"]
-
-                attempt_info["n_messages"] = len(next_state.history) - len(
-                    state.history
-                )
-                attempt_info["n_errors"] = call_descendent_error_count(call)
-                state = next_state
-
-                with open(ctx.resolve_path("file.txt"), "r") as f:
-                    file_contents = f.read().strip()
-                attempt_info["made_edit"] = file_contents != prev_file_contents
-                prev_file_contents = file_contents
-
-                file_lines = file_contents.split("\n")
-                attempt_correct = file_contents == "\n".join(lines)
-                attempt_info["correct"] = attempt_correct
-                if attempt_correct:
-                    task_correct = True
-                    # stop attempts
-                    break
-
-                attempt_info["error_details"] = mismatch_details(lines, file_lines)
-
-                print()
-                print(f"*** FAILED ATTEMPT Task: {task_idx} Attempt: {attempt}")
-                print()
-                state = AgentState(
-                    history=state.history
-                    + [
-                        {
-                            "role": "user",
-                            "content": "edit was incorrect, try again",
-                        },
-                    ],
-                )
-            task_info["correct"] = task_correct
-            task_info["n_errors"] = sum(
-                attempt_info["n_errors"] for attempt_info in task_info["attempts"]
-            )
-            task_info["n_messages"] = sum(
-                attempt_info["n_messages"] for attempt_info in task_info["attempts"]
-            )
+            task_correct = task_info["correct"]
             if not task_correct:
                 # Don't do further tasks.
                 break
@@ -185,6 +125,95 @@ def eval_edit_memory(config: EvalEditMemoryConfig, agent: Agent):
             task_info["n_errors"] for task_info in results["task_info"]
         )
         return results
+
+
+@weave.op
+def run_task(
+    config: EvalEditMemoryConfig,
+    agent: Agent,
+    state: AgentState,
+    expected_lines: list[str],
+    task_idx: int,
+    prompt: str,
+):
+    ctx = get_current_context()
+    print(f"*** TASK: {task_idx}, {prompt}")
+    state = AgentState(
+        history=state.history
+        + [
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+    )
+    task_info = {"task_idx": task_idx, "attempts": []}
+    task_correct = False
+    for attempt in range(5):
+        attempt_info: dict = {"attempt_idx": attempt}
+        task_info["attempts"].append(attempt_info)
+
+        with open(ctx.resolve_path("file.txt"), "r") as f:
+            prev_file_contents = f.read().strip()
+
+        run_result, call = agent.run.call(
+            agent, state, max_runtime_seconds=config["run_timeout_seconds"]
+        )
+        if call.exception is not None:
+            print("*** EXCEPTION ***")
+            print(call.exception)
+            attempt_info["stop_reason"] = "exception"
+            continue
+        attempt_info["stop_reason"] = run_result["stop_reason"]
+        stop_reason = run_result["stop_reason"]
+        if stop_reason == "time_limit_exceeded":
+            print("*** TIME LIMIT EXCEEDED ***")
+
+        next_state = run_result["state"]
+
+        attempt_info["n_messages"] = len(next_state.history) - len(state.history)
+        attempt_info["n_errors"] = call_descendent_error_count(call)
+        state = next_state
+
+        with open(ctx.resolve_path("file.txt"), "r") as f:
+            file_contents = f.read().strip()
+        attempt_info["made_edit"] = file_contents != prev_file_contents
+
+        file_lines = file_contents.split("\n")
+        attempt_correct = file_contents == "\n".join(expected_lines)
+        attempt_info["correct"] = attempt_correct
+        if attempt_correct:
+            task_correct = True
+            # stop attempts
+            break
+
+        attempt_info["error_details"] = mismatch_details(expected_lines, file_lines)
+
+        print()
+        print(f"*** FAILED ATTEMPT Task: {task_idx} Attempt: {attempt}")
+        print()
+        state = AgentState(
+            history=state.history
+            + [
+                {
+                    "role": "user",
+                    "content": "edit was incorrect, try again",
+                },
+            ],
+        )
+    task_info["correct"] = task_correct
+    task_info["n_attempts"] = len(task_info["attempts"])
+    task_info["n_errors"] = sum(
+        attempt_info["n_errors"] for attempt_info in task_info["attempts"]
+    )
+    task_info["n_messages"] = sum(
+        attempt_info["n_messages"] for attempt_info in task_info["attempts"]
+    )
+
+    return {
+        "task_info": task_info,
+        "state": state,
+    }
 
 
 def mismatch_details(lines, file_lines):
@@ -249,11 +278,11 @@ if __name__ == "__main__":
         (agent, "agent"),
         # (agent_claude, "agent_claude"),
         # (agent_claude_replace, "agent_claude_replace"),
-        (agent_replace, "agent_replace"),
-        (agent_splice, "agent_splice"),
+        # (agent_replace, "agent_replace"),
+        # (agent_splice, "agent_splice"),
     ]
     config = EvalEditMemoryConfig(n_lines=100, run_timeout_seconds=60)
-    n_trials = 5
+    n_trials = 1
     results = {}
     for agent, name in agent_specs:
         results[name] = run_trials(config, agent, name, n_trials, max_workers=5)
