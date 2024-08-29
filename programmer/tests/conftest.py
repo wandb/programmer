@@ -3,9 +3,9 @@ import warnings
 import pytest
 import logging
 
-from weave.weave_client import WeaveClient
+from weave.trace.weave_client import WeaveClient
 from weave.trace_server.sqlite_trace_server import SqliteTraceServer
-from weave.weave_init import InitializedClient
+from weave.trace.weave_init import InitializedClient
 from programmer.weave_next.api import make_external_sql_server
 
 # Set up logging

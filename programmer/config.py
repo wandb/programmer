@@ -12,6 +12,7 @@ from .tools import (
     view_image,
     read_lines_from_file,
     replace_lines_in_file,
+    splice_lines_in_file,
 )
 from .agent import Agent
 
@@ -31,7 +32,7 @@ agent_claude_replace = Agent(
         run_command,
         view_image,
         read_lines_from_file,
-        replace_lines_in_file,
+        splice_lines_in_file,
     ],
 )
 
@@ -44,6 +45,19 @@ agent_claude = Agent(
 
 # This still doesn't work as well. gpt-4o will get stuck in loops when it tries to
 # do multiple file edits in one call, for example.
+agent_splice = Agent(
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    tools=[
+        list_files,
+        run_command,
+        view_image,
+        read_lines_from_file,
+        splice_lines_in_file,
+    ],
+)
+
 agent_replace = Agent(
     model_name="gpt-4o-2024-08-06",
     temperature=0.7,

@@ -233,6 +233,8 @@ def list_files(directory: str) -> str:
     output = result["output"]
     if exit_code != 0:
         raise Exception(f"Failed to list files: {output}")
+    if output == "":
+        return "[No files found]"
     if len(output) > LENGTH_LIMIT:
         output = output[:LENGTH_LIMIT]
         output += "\n... (truncated)"
@@ -349,6 +351,71 @@ def replace_lines_in_file(
         remove_line_count: The number of lines to remove, starting with start_line.
         previous_lines: The previous lines to replace, as a single string. This must match the existing lines, or an exception is raised.
         new_lines: The new lines to insert, as a single string.
+
+    Returns:
+        Success message, otherwise raises an exception.
+
+    Raises:
+        Exception: If the line range is invalid or file cannot be accessed.
+    """
+    context = get_current_context()
+    full_path = context.resolve_path(file_path)
+    try:
+        content = context.read_file(full_path)
+    except FileNotFoundError:
+        content = ""
+    lines = content.splitlines()
+
+    end_line = start_line + remove_line_count
+
+    if start_line < 1 or end_line < start_line or start_line > len(lines) + 1:
+        raise Exception("Invalid line range.")
+
+    prev_line_split = previous_lines.splitlines()
+    if not lines[start_line - 1 : end_line - 1] == prev_line_split:
+        raise Exception("Previous lines do not match.")
+
+    # Adjust end_line if it exceeds the current number of lines
+    end_line = min(end_line, len(lines) + 1)
+
+    # Convert new_lines string into a list of lines
+    new_lines_list = new_lines.splitlines()
+
+    # Replace the specified line range
+    lines[start_line - 1 : end_line - 1] = new_lines_list
+
+    # Write the modified lines back to the file
+    context.write_file(full_path, "\n".join(lines) + "\n")
+
+    # Determine the range for the output with a 5-line buffer
+    output_start = max(start_line - 6, 0)
+    output_end = min(start_line - 1 + len(new_lines_list) + 6, len(lines))
+    result = ""
+
+    for i in range(output_start, output_end):
+        result += f"{i + 1}:{lines[i]}\n"
+
+    return result
+
+
+@weave.op
+def splice_lines_in_file(
+    file_path: str,
+    start_line: int,
+    remove_line_count: int,
+    previous_lines: str,
+    new_lines: str,
+) -> str:
+    """Remove remove_line_count lines, starting with start_line, then insert new_lines so that first line is inserted at index start_line.
+
+    To append, use last line index + 1.
+
+    Args:
+        file_path: The path to the file.
+        start_line: The starting line number for replacement (1-indexed).
+        remove_line_count: The number of lines to remove, starting with start_line.
+        previous_lines: The previous lines to replace, as a single string. This must match the existing lines, or an exception is raised.
+        new_lines: The new lines to insert, as a single string. The first line inserted will be at index start_line.
 
     Returns:
         Success message, otherwise raises an exception.

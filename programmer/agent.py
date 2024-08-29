@@ -15,10 +15,6 @@ from .tool_calling import chat_call_tool_params, perform_tool_calls
 from .environment import get_current_environment, EnvironmentSnapshotKey
 
 
-class TimeLimitExceeded(Exception):
-    pass
-
-
 def get_commit_message(history: list[Any]) -> str:
     # Commit message is the most recent message with 'content'
     for i in range(len(history) - 1, -1, -1):
@@ -135,12 +131,10 @@ class Agent(weave.Object):
         while True:
             last_message = state.history[-1]
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
-                return state
+                return {"state": state, "stop_reason": "no_tool_call"}
             state = self.step(state)
             if (
                 max_runtime_seconds > 0
                 and time.time() - start_time > max_runtime_seconds
             ):
-                raise TimeLimitExceeded(
-                    f"Agent runtime exceeded {max_runtime_seconds}s"
-                )
+                return {"state": state, "stop_reason": "time_limit_exceeded"}

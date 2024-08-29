@@ -1,7 +1,7 @@
 import pytest
 
 import weave
-from weave.weave_client import WeaveClient
+from weave.trace.weave_client import WeaveClient
 
 from programmer.weave_next.weave_query import calls, expand_refs
 

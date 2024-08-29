@@ -1,6 +1,6 @@
 import weave
 
-from ..agent import Agent, AgentState, TimeLimitExceeded
+from ..agent import Agent, AgentState
 from ..tools import RemoteContainerToolContext
 
 
@@ -32,10 +32,10 @@ class SWEBenchProgrammerModel(weave.Model):
         )
         container_id = f"sweb.eval.x86_64.{instance_id}"
         with tc.context(container_id):
-            try:
-                self.agent.run(state, max_runtime_seconds=self.max_runtime_seconds)
-            except TimeLimitExceeded:
+            result = self.agent.run(state, max_runtime_seconds=self.max_runtime_seconds)
+            if result["stop_reason"] == "time_limit_exceeded":
                 return {"errorcode": "runtime", "answer": ""}
             answer_result = tc.run_command("git diff")
             answer = answer_result["output"]
+            return {"answer": answer}
         return {"answer": answer}

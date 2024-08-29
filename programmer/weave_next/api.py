@@ -4,8 +4,8 @@ from typing import Optional
 import base64
 
 
-from weave.weave_client import WeaveClient
-from weave.weave_init import InitializedClient
+from weave.trace.weave_client import WeaveClient
+from weave.trace.weave_init import InitializedClient
 from weave.trace_server.external_to_internal_trace_server_adapter import (
     IdConverter,
     ExternalTraceServer,

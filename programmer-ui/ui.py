@@ -6,7 +6,7 @@ import json
 import streamlit as st
 import weave
 import os
-from weave.weave_client import WeaveClient
+from weave.trace.weave_client import WeaveClient
 
 from programmer.weave_next.api import init_local_client
 from programmer.weave_next.weave_query import calls, expand_refs

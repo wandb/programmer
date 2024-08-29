@@ -3,7 +3,7 @@
 
 from typing import Optional, Union, Sequence, Any
 import pandas as pd
-from weave.weave_client import WeaveClient
+from weave.trace.weave_client import WeaveClient
 from weave.trace_server.trace_server_interface import (
     CallsQueryReq,
     CallsFilter,

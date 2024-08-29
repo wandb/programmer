@@ -79,7 +79,8 @@ def session(agent: Agent, agent_state: AgentState):
             history=agent_state.history, env_snapshot_key=env.make_snapshot(msg)
         )
         while True:
-            agent_state = agent.run(agent_state)
+            result = agent.run(agent_state)
+            agent_state = result["state"]
             agent_state = user_input_step(agent_state)
 
 

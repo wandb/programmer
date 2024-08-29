@@ -1,7 +1,13 @@
 import os
 import pytest
 from tempfile import TemporaryDirectory
-from programmer.tools import read_lines_from_file, replace_lines_in_file, LocalToolContext, tool_context, get_current_context
+from programmer.tools import (
+    read_lines_from_file,
+    splice_lines_in_file,
+    LocalToolContext,
+    tool_context,
+    get_current_context,
+)
 
 
 @pytest.fixture()
@@ -14,7 +20,10 @@ def tempdir_tool_context():
 @pytest.fixture()
 def test_file_path(tempdir_tool_context):
     file_path = "test_file.txt"
-    tempdir_tool_context.write_file(file_path, "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\n")
+    tempdir_tool_context.write_file(
+        file_path,
+        "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\n",
+    )
     yield file_path
 
 
@@ -39,7 +48,7 @@ def test_read_lines_from_file(test_file_path):
 
 def test_replace_lines_in_file(test_file_path):
     # Valid replacement
-    result = replace_lines_in_file(
+    result = splice_lines_in_file(
         test_file_path,
         2,
         3,
@@ -52,11 +61,13 @@ def test_replace_lines_in_file(test_file_path):
     assert "10:Line 10\n" in result
 
     # Replacement with a new file
-    result = replace_lines_in_file("new_test_file.txt", 1, 0, "", "First Line\nSecond Line\n")
+    result = splice_lines_in_file(
+        "new_test_file.txt", 1, 0, "", "First Line\nSecond Line\n"
+    )
     assert "1:First Line\n" in result
     assert "2:Second Line\n" in result
 
-    replace_lines_in_file(test_file_path, 11, 0, "", "Out of range\n")
+    splice_lines_in_file(test_file_path, 11, 0, "", "Out of range\n")
 
 
 # Test appending to the end of a file
@@ -66,7 +77,7 @@ def test_append_to_file(tempdir_tool_context, test_file_path):
 
     # Append new lines
     new_lines = "New Line 11\nNew Line 12\n"
-    result = replace_lines_in_file(test_file_path, 11, 0, "", new_lines)
+    result = splice_lines_in_file(test_file_path, 11, 0, "", new_lines)
 
     # Verify the file content
     updated_content = tempdir_tool_context.read_file(test_file_path)
@@ -91,7 +102,7 @@ def test_insert_at_beginning(tempdir_tool_context, test_file_path):
 
     # Insert new lines at the beginning
     new_lines = "New First Line\nNew Second Line\n"
-    result = replace_lines_in_file(test_file_path, 1, 0, "", new_lines)
+    result = splice_lines_in_file(test_file_path, 1, 0, "", new_lines)
 
     # Verify the result
     assert "1:New First Line\n" in result
@@ -123,7 +134,7 @@ def test_read_replace_read(test_file_path):
 
     # Replace lines 3-5 with new content
     new_lines = "Replaced Line 3\nReplaced Line 4\nReplaced Line 5\n"
-    replace_result = replace_lines_in_file(
+    replace_result = splice_lines_in_file(
         test_file_path, 3, 3, "Line 3\nLine 4\nLine 5\n", new_lines
     )
 
