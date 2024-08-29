@@ -4,3 +4,4 @@ pytest
 pyright
 fastapi
 docker
+swebench
