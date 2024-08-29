@@ -10,9 +10,9 @@ from typing import Any, Optional
 
 import weave
 
-from .agent import AgentState, get_commit_message
+from .agent import Agent, AgentState, get_commit_message
 from .console import Console
-from .config import agent
+from .config import agent_replace
 from .environment import (
     environment_session,
     restore_environment,
@@ -64,7 +64,7 @@ def make_environment():
 
 
 @weave.op
-def session(agent_state: AgentState):
+def session(agent: Agent, agent_state: AgentState):
     call = weave.get_current_call()
 
     session_id = None
@@ -161,7 +161,7 @@ def main():
         ],
     )
 
-    session(state)
+    session(agent_replace, state)
 
 
 if __name__ == "__main__":

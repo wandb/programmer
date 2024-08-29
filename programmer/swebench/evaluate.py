@@ -62,9 +62,7 @@ def main():
     # ds = load_weave_dataset("SWE-bench_Verified", "test", instance_ids=instance_ids)
     ds = load_weave_dataset("SWE-bench_Verified", "test", limit=50, shuffle_seed=42)
     eval = weave.Evaluation(
-        name="SWE-bench_Verified",
-        dataset=ds,
-        scorers=[score_swebench],
+        name="SWE-bench_Verified", dataset=ds, scorers=[score_swebench], trials=5
     )
 
     model = SWEBenchProgrammerModel(
