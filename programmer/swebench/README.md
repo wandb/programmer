@@ -1,4 +1,4 @@
-# SWE Bench stuff
+# SWE Bench programmer evaluation
 
 ## Build SWE-bench images
 

@@ -6,12 +6,12 @@ from rich import print
 
 import weave
 
-from .weave_next.api import init_local_client
-from .settings_manager import SettingsManager
+from ..weave_next.api import init_local_client
+from ..settings_manager import SettingsManager
 
-from .swebench.swebench_model import SWEBenchProgrammerModel
-from .swebench.score import score_swebench
-from .config import agent_replace
+from ..swebench.swebench_model import SWEBenchProgrammerModel
+from ..swebench.score import score_swebench
+from ..config import agent_replace
 
 
 def main():
