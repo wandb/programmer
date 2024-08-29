@@ -1,6 +1,6 @@
 import argparse
 import sys
-
+from typing import Optional
 import pandas as pd
 import weave
 
@@ -18,13 +18,13 @@ def load_raw_dataset(name: str, split: str):
     )
 
 
-def load_weave_dataset(name: str, split: str, limit: int = None):
+def load_weave_dataset(name: str, split: str, limit: Optional[int] = None):
     df = load_raw_dataset(name, split)
 
     data_list = df.to_dict("records")
     data_list = data_list[:limit] if limit else data_list
 
-    return weave.Dataset(name=f"Verified-{limit}", rows=data_list)
+    return weave.Dataset(name=f"Verified-{limit}", rows=data_list)  # type: ignore
 
 
 def main(dataset_name="SWE-bench_Verified", split="test"):
@@ -48,7 +48,7 @@ def main(dataset_name="SWE-bench_Verified", split="test"):
 
     data_list = df.to_dict("records")
 
-    dataset = weave.Dataset(rows=data_list)
+    dataset = weave.Dataset(rows=data_list)  # type: ignore
 
     weave.publish(dataset, f"{dataset_name}_{split}")
 

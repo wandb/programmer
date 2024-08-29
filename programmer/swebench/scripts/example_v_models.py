@@ -38,7 +38,7 @@ def main():
     pivot_df = pivot_df[cols]
 
     # Sort the pivot table by 'models_resolved_true' in descending order
-    pivot_df = pivot_df.sort_values(by="models_resolved_true", ascending=False)
+    pivot_df = pivot_df.sort_values(by="models_resolved_true", ascending=False)  # type: ignore
 
     # Sort columns by the model that got the most resolved
     model_success_count = pivot_df.sum().sort_values(ascending=False)
