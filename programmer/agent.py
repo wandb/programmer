@@ -130,14 +130,17 @@ class Agent(weave.Object):
         return AgentState(history=new_history, env_snapshot_key=snapshot_key)
 
     @weave.op()
-    def run(self, state: AgentState, max_runtime_seconds: int = 60):
+    def run(self, state: AgentState, max_runtime_seconds: int = -1):
         start_time = time.time()
         while True:
             last_message = state.history[-1]
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
                 return state
             state = self.step(state)
-            if time.time() - start_time > max_runtime_seconds:
+            if (
+                max_runtime_seconds > 0
+                and time.time() - start_time > max_runtime_seconds
+            ):
                 raise TimeLimitExceeded(
                     f"Agent runtime exceeded {max_runtime_seconds}s"
                 )
