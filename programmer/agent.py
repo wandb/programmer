@@ -131,7 +131,7 @@ class Agent(weave.Object):
         while True:
             last_message = state.history[-1]
             if last_message["role"] == "assistant" and "tool_calls" not in last_message:
-                return {"state": state, "stop_reason": "no_tool_call"}
+                return {"state": state, "stop_reason": "done"}
             state = self.step(state)
             if (
                 max_runtime_seconds > 0

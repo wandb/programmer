@@ -12,7 +12,9 @@ import weave
 
 from .agent import Agent, AgentState, get_commit_message
 from .console import Console
-from .config import agent_replace
+from .config import (
+    agent_4o_replace,
+)
 from .environment import (
     environment_session,
     restore_environment,
@@ -162,7 +164,7 @@ def programmer():
         ],
     )
 
-    session(agent_replace, state)
+    session(agent_4o_replace, state)
 
 
 def main():
