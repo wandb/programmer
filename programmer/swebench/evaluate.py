@@ -7,14 +7,7 @@ import weave
 from .swebench_model import SWEBenchProgrammerModel
 from .score import score_swebench
 from ..agent import Agent
-from ..config import SYSTEM_MESSAGE
-from ..tools import (
-    list_files,
-    run_command,
-    view_image,
-    read_lines_from_file,
-    replace_lines_in_file,
-)
+from ..config import agent_4o_basic
 
 
 def load_raw_dataset(name: str, split: str):
@@ -62,22 +55,11 @@ def main():
     # ds = load_weave_dataset("SWE-bench_Verified", "test", instance_ids=instance_ids)
     ds = load_weave_dataset("SWE-bench_Verified", "test", limit=50, shuffle_seed=42)
     eval = weave.Evaluation(
-        name="SWE-bench_Verified", dataset=ds, scorers=[score_swebench], trials=5
+        name="SWE-bench_Verified", dataset=ds, scorers=[score_swebench], trials=1
     )
 
     model = SWEBenchProgrammerModel(
-        agent=Agent(
-            model_name="gpt-4o-2024-08-06",
-            temperature=0.7,
-            system_message=SYSTEM_MESSAGE,
-            tools=[
-                list_files,
-                run_command,
-                view_image,
-                read_lines_from_file,
-                replace_lines_in_file,
-            ],
-        ),
+        agent=agent_4o_basic,
         max_runtime_seconds=180,
     )
     res = asyncio.run(eval.evaluate(model))
