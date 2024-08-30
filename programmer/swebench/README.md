@@ -1,5 +1,12 @@
 # SWE Bench programmer evaluation
 
+This is a custom setup to run fast SWE-bench evals on programmer. The steps are:
+- serve swebench docker containers from a remote machine
+  - setup an x86 machine (I use a gcp e2-standard-32)
+  - build the swebench instance images. For SWE-bench_Verified this builds about 550 images.
+  - run [containerserver](../containerserver/README.md) on the machine. containerserver serves an HTTP interface into the Docker containers.
+- on your local machine, run python -m programmer.swebench.run_instance or python -m programmer.swebench.evaluate
+
 ## Build SWE-bench images
 
 First do setup (below) then run this command to build all the images. --cache_level instance tells the script not to delete the instance images, which are what we want to use with container-manager.
@@ -12,6 +19,10 @@ python -m swebench.harness.run_evaluation \
      --dataset_name princeton-nlp/SWE-bench_Verified \
      --cache_level instance
 ```
+
+## Run containerserver
+
+See [containerserver](../containerserver/README.md) for setup and running containerserver.
 
 
 ## remote machine setup instructions on gcp VM ubuntu 20.04

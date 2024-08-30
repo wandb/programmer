@@ -3,7 +3,7 @@ import json
 import weave
 
 from agent import AgentState
-from config import agent
+from config import agent_4o_basic
 
 # Need to serialize AgentState as json for now since we can't save weave Objects
 # in Dataset set.
@@ -40,7 +40,7 @@ eval = weave.Evaluation(
 
 @weave.op()
 def model_agent_bridge(state: str):
-    return agent.run(AgentState(**json.loads(state))).model_dump_json()
+    return agent_4o_basic.run(AgentState(**json.loads(state))).model_dump_json()
 
 
 if __name__ == "__main__":

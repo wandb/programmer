@@ -11,7 +11,7 @@ from ..settings_manager import SettingsManager
 
 from ..swebench.swebench_model import SWEBenchProgrammerModel
 from ..swebench.score import score_swebench
-from ..config import agent_replace
+from ..config import agent_4o_basic
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
     print("SOLUTION\n", instance["patch"])
     print()
 
-    model = SWEBenchProgrammerModel(agent=agent_replace)
+    model = SWEBenchProgrammerModel(agent=agent_4o_basic)
     model_output = model.predict(instance)
     score = score_swebench(instance, model_output["answer"])
     print("SCORE\n", score)
