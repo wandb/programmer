@@ -9,13 +9,13 @@ from programmer.text_editor import (
     WriteFileResult,
     TextEditorMutationResult,
 )
-from programmer.io_context import LocalToolContext, tool_context
+from programmer.io_context import LocalIOContext, io_context
 
 
 @pytest.fixture()
 def tempdir_tool_context():
     with TemporaryDirectory() as tmpdir:
-        with tool_context(LocalToolContext(tmpdir)) as tc:
+        with io_context(LocalIOContext(tmpdir)) as tc:
             yield tc
 
 

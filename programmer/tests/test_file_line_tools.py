@@ -4,15 +4,15 @@ from tempfile import TemporaryDirectory
 from programmer.tools import (
     read_lines_from_file,
     splice_lines_in_file,
-    get_current_context,
+    get_io_context,
 )
-from programmer.io_context import LocalToolContext, tool_context
+from programmer.io_context import LocalIOContext, io_context
 
 
 @pytest.fixture()
 def tempdir_tool_context():
     with TemporaryDirectory() as tmpdir:
-        with tool_context(LocalToolContext(tmpdir)) as tc:
+        with io_context(LocalIOContext(tmpdir)) as tc:
             yield tc
 
 

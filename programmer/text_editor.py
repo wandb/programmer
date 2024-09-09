@@ -1,7 +1,7 @@
 from typing import Optional, Generic, TypeVar
 from dataclasses import dataclass, field
 
-from .io_context import get_current_context
+from .io_context import get_io_context
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,7 @@ class TextEditorState:
         return sum(file.total_lines() for file in self.open_files.values())
 
     def get_open_file_info(self) -> "OpenFileInfoResult":
-        file_io_context = get_current_context()
+        file_io_context = get_io_context()
         open_file_buffers = {}
         for path, open_file in self.open_files.items():
             contents = file_io_context.read_file(path)
@@ -194,7 +194,7 @@ class TextEditor:
     def open_file(
         self, state: TextEditorState, path: str, start_line: int
     ) -> TextEditorMutationResult[OpenFileResult]:
-        file_io_context = get_current_context()
+        file_io_context = get_io_context()
         try:
             file_contents = file_io_context.read_file(path)
         except FileNotFoundError:
@@ -267,7 +267,7 @@ class TextEditor:
         truncate_n_lines: int,
         lines: str,
     ) -> TextEditorMutationResult[WriteFileResult]:
-        file_io_context = get_current_context()
+        file_io_context = get_io_context()
         new_lines = lines.split("\n")
         net_change = len(new_lines) - truncate_n_lines
         if state.total_lines() + net_change > self.MAX_OPEN_SIZE:

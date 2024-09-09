@@ -2,7 +2,7 @@ import base64
 import os
 import weave
 
-from .io_context import get_current_context
+from .io_context import get_io_context
 
 LENGTH_LIMIT = 30000
 
@@ -40,7 +40,7 @@ def view_image(path: str):
     Returns:
         A message indicating that the image was displayed successfully.
     """
-    context = get_current_context()
+    context = get_io_context()
     full_path = context.resolve_path(path)
     base64_image = read_image_as_base64(full_path)
 
@@ -65,7 +65,7 @@ def list_files(directory: str) -> str:
     Returns:
         The list of files in the directory.
     """
-    context = get_current_context()
+    context = get_io_context()
     # full_path = context.resolve_path(directory)
     result = context.run_command(f"ls {directory}")
     exit_code = result["exit_code"]
@@ -91,7 +91,7 @@ def write_to_file(path: str, content: str) -> str:
     Returns:
         A message indicating whether the file was written successfully.
     """
-    context = get_current_context()
+    context = get_io_context()
     if len(content) > LENGTH_LIMIT:
         content = content[:LENGTH_LIMIT]
         content += "\n... (truncated)"
@@ -109,7 +109,7 @@ def read_from_file(path: str) -> str:
     Returns:
         The content of the file.
     """
-    context = get_current_context()
+    context = get_io_context()
     result = context.read_file(path)
     if len(result) > LENGTH_LIMIT:
         result = result[:LENGTH_LIMIT]
@@ -127,7 +127,7 @@ def run_command(command: str) -> str:
     Returns:
         The output of the command.
     """
-    context = get_current_context()
+    context = get_io_context()
     result = context.run_command(command)
 
     exit_code = result["exit_code"]
@@ -157,7 +157,7 @@ def read_lines_from_file(file_path: str, start_line: int) -> str:
     Raises:
         Exception: If the file does not exist or start_line is invalid.
     """
-    context = get_current_context()
+    context = get_io_context()
     full_path = context.resolve_path(file_path)
     content = context.read_file(full_path)
     lines = content.splitlines()
@@ -197,7 +197,7 @@ def replace_lines_in_file(
     Raises:
         Exception: If the line range is invalid or file cannot be accessed.
     """
-    context = get_current_context()
+    context = get_io_context()
     full_path = context.resolve_path(file_path)
     try:
         content = context.read_file(full_path)
@@ -262,7 +262,7 @@ def splice_lines_in_file(
     Raises:
         Exception: If the line range is invalid or file cannot be accessed.
     """
-    context = get_current_context()
+    context = get_io_context()
     full_path = context.resolve_path(file_path)
     try:
         content = context.read_file(full_path)

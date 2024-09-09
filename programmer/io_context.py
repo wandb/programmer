@@ -13,7 +13,7 @@ class RunCommandResult(TypedDict):
     output: str
 
 
-class ToolContext(Protocol):
+class IOContext(Protocol):
     def write_file(self, path: str, content: str) -> None: ...
 
     def read_file(self, path: str) -> str: ...
@@ -23,7 +23,7 @@ class ToolContext(Protocol):
     def resolve_path(self, path: str) -> str: ...
 
 
-class LocalToolContext(ToolContext):
+class LocalIOContext(IOContext):
     def __init__(self, directory):
         self.directory = os.path.abspath(directory)
 
@@ -58,7 +58,7 @@ class LocalToolContext(ToolContext):
         return os.path.join(self.directory, path)
 
 
-class RemoteContainerToolContext(ToolContext):
+class RemoteContainerIOContext(IOContext):
     def __init__(self, base_url: str, directory: str, command_prefix: str):
         self.base_url = base_url
         self.container_id = None
@@ -69,7 +69,7 @@ class RemoteContainerToolContext(ToolContext):
     def context(self, image_id: str):
         self.start_container(image_id)
         try:
-            with tool_context(self):
+            with io_context(self):
                 yield
         finally:
             self.stop_container()
@@ -142,22 +142,22 @@ class RemoteContainerToolContext(ToolContext):
 
 
 # Create a ContextVar to store the current ToolContext
-current_context: ContextVar[
-    Optional[Union[LocalToolContext, RemoteContainerToolContext]]
-] = ContextVar("current_context", default=None)
+_io_context: ContextVar[Optional[Union[LocalIOContext, RemoteContainerIOContext]]] = (
+    ContextVar("_io_context", default=None)
+)
 
 
 @contextmanager
-def tool_context(context: Union[LocalToolContext, RemoteContainerToolContext]):
-    token = current_context.set(context)
+def io_context(context: Union[LocalIOContext, RemoteContainerIOContext]):
+    token = _io_context.set(context)
     try:
         yield context
     finally:
-        current_context.reset(token)
+        _io_context.reset(token)
 
 
-def get_current_context() -> Union[LocalToolContext, RemoteContainerToolContext]:
-    context = current_context.get()
+def get_io_context() -> Union[LocalIOContext, RemoteContainerIOContext]:
+    context = _io_context.get()
     if context is None:
-        return LocalToolContext(".")
+        return LocalIOContext(".")
     return context

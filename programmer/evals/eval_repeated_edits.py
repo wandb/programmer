@@ -10,7 +10,7 @@ from weave.trace import call_context
 
 from ..agent import AgentState, Agent
 from ..config import *
-from ..tools import tool_context, LocalToolContext, get_current_context
+from ..tools import tool_context, LocalToolContext, get_io_context
 
 # NOTES
 # - Try with other LLM and tool configs now that I have this test
@@ -214,7 +214,7 @@ def run_attempt(
     call = weave.get_current_call()
     if call:
         call.set_display_name(f"Attempt{attempt_idx}")
-    ctx = get_current_context()
+    ctx = get_io_context()
     attempt_info: dict = {
         "attempt_idx": attempt_idx,
         "correct": False,
