@@ -4,10 +4,9 @@ from tempfile import TemporaryDirectory
 from programmer.tools import (
     read_lines_from_file,
     splice_lines_in_file,
-    LocalToolContext,
-    tool_context,
     get_current_context,
 )
+from programmer.io_context import LocalToolContext, tool_context
 
 
 @pytest.fixture()

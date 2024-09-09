@@ -9,7 +9,7 @@ from programmer.text_editor import (
     WriteFileResult,
     TextEditorMutationResult,
 )
-from programmer.tools import LocalToolContext, tool_context
+from programmer.io_context import LocalToolContext, tool_context
 
 
 @pytest.fixture()
@@ -29,7 +29,7 @@ def sample_file(tempdir_tool_context):
 
 @pytest.fixture()
 def text_editor(tempdir_tool_context):
-    return TextEditor(tempdir_tool_context, max_open_size=150, open_chunk_size=50)
+    return TextEditor(max_open_size=150, open_chunk_size=50)
 
 
 @pytest.fixture()
@@ -49,7 +49,7 @@ def test_open_file(text_editor, sample_file, initial_state):
 
 
 def test_open_file_exceed_max_size(tempdir_tool_context, sample_file):
-    text_editor = TextEditor(tempdir_tool_context, max_open_size=75, open_chunk_size=50)
+    text_editor = TextEditor(max_open_size=75, open_chunk_size=50)
     initial_state = TextEditorState()
 
     # Open the file once (50 lines)
@@ -64,9 +64,7 @@ def test_open_file_exceed_max_size(tempdir_tool_context, sample_file):
 
 
 def test_open_file_at_boundary(tempdir_tool_context, sample_file):
-    text_editor = TextEditor(
-        tempdir_tool_context, max_open_size=100, open_chunk_size=50
-    )
+    text_editor = TextEditor(max_open_size=100, open_chunk_size=50)
     initial_state = TextEditorState()
 
     # Open exactly MAX_OPEN_SIZE lines
@@ -104,7 +102,7 @@ def test_close_file_range(text_editor, sample_file, initial_state):
 
 def test_get_open_file_info(text_editor, sample_file, initial_state):
     state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
-    info = state1.get_open_file_info(text_editor.file_system)
+    info = state1.get_open_file_info()
     assert sample_file in info.open_file_buffers
     assert info.open_file_buffers[sample_file].total_lines == 200
     assert len(info.open_file_buffers[sample_file].buffers) == 1

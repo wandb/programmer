@@ -1,7 +1,7 @@
 from typing import Optional, Generic, TypeVar
 from dataclasses import dataclass, field
 
-from .file_protocol import FileSystem
+from .io_context import get_current_context
 
 
 @dataclass(frozen=True)
@@ -101,10 +101,11 @@ class TextEditorState:
     def total_lines(self) -> int:
         return sum(file.total_lines() for file in self.open_files.values())
 
-    def get_open_file_info(self, file_system: FileSystem) -> "OpenFileInfoResult":
+    def get_open_file_info(self) -> "OpenFileInfoResult":
+        file_io_context = get_current_context()
         open_file_buffers = {}
         for path, open_file in self.open_files.items():
-            contents = file_system.read_file(path)
+            contents = file_io_context.read_file(path)
             lines = contents.split("\n")
             buffers = []
             for range in open_file.ranges:
@@ -139,6 +140,19 @@ class OpenFileInfo:
 class OpenFileInfoResult:
     open_file_buffers: dict[str, OpenFileInfo] = field(default_factory=dict)
 
+    def format_for_messages(self) -> str:
+        lines = ["The following file line ranges are currently open"]
+        for path, open_file_info in self.open_file_buffers.items():
+            lines.append(f"<file {path}>")
+            lines.append(f"<file_info total_lines={open_file_info.total_lines} />")
+            for buffer in open_file_info.buffers:
+                lines.append("<buffer>")
+                for i, line in enumerate(buffer.lines):
+                    lines.append(f"{buffer.line_range.start_line + i}: {line}")
+                lines.append("</buffer>")
+            lines.append("</file>")
+        return "\n".join(lines)
+
 
 @dataclass(frozen=True)
 class ClosedFileRange:
@@ -151,14 +165,12 @@ class ClosedFileRange:
 class OpenFileResult:
     success: bool
     error: str
-    closed_file_range: Optional[list[str]]
 
 
 @dataclass(frozen=True)
 class WriteFileResult:
     success: bool
     error: str
-    closed_file_range: list[str]
 
 
 T = TypeVar("T")
@@ -173,25 +185,22 @@ class TextEditorMutationResult(Generic[T]):
 class TextEditor:
     def __init__(
         self,
-        file_system: FileSystem,
         max_open_size: int = 1500,
         open_chunk_size: int = 500,
     ):
-        self.file_system = file_system
         self.MAX_OPEN_SIZE = max_open_size
         self.OPEN_CHUNK_SIZE = open_chunk_size
 
     def open_file(
         self, state: TextEditorState, path: str, start_line: int
     ) -> TextEditorMutationResult[OpenFileResult]:
+        file_io_context = get_current_context()
         try:
-            file_contents = self.file_system.read_file(path)
+            file_contents = file_io_context.read_file(path)
         except FileNotFoundError:
             return TextEditorMutationResult(
                 new_state=state,
-                action_result=OpenFileResult(
-                    success=False, error="File not found", closed_file_range=[]
-                ),
+                action_result=OpenFileResult(success=False, error="File not found"),
             )
 
         file_lines = file_contents.split("\n")
@@ -203,7 +212,6 @@ class TextEditor:
                 action_result=OpenFileResult(
                     success=False,
                     error=f"Start line {start_line} is beyond the end of the file (which has {file_lines_count} lines).",
-                    closed_file_range=[],
                 ),
             )
 
@@ -222,7 +230,6 @@ class TextEditor:
                 action_result=OpenFileResult(
                     success=False,
                     error=f"This request would result in {state.total_lines() + added_lines} open lines exceeding the maximum of {self.MAX_OPEN_SIZE} lines.",
-                    closed_file_range=None,
                 ),
             )
 
@@ -232,7 +239,7 @@ class TextEditor:
 
         return TextEditorMutationResult(
             new_state=new_state,
-            action_result=OpenFileResult(success=True, error="", closed_file_range=[]),
+            action_result=OpenFileResult(success=True, error=""),
         )
 
     def close_file_range(
@@ -260,6 +267,7 @@ class TextEditor:
         truncate_n_lines: int,
         lines: str,
     ) -> TextEditorMutationResult[WriteFileResult]:
+        file_io_context = get_current_context()
         new_lines = lines.split("\n")
         net_change = len(new_lines) - truncate_n_lines
         if state.total_lines() + net_change > self.MAX_OPEN_SIZE:
@@ -268,23 +276,21 @@ class TextEditor:
                 action_result=WriteFileResult(
                     success=False,
                     error=f"This edit would result in {state.total_lines() + net_change} open lines exceeding the maximum of {self.MAX_OPEN_SIZE} lines.",
-                    closed_file_range=[],
                 ),
             )
 
         try:
-            file_contents = self.file_system.read_file(path)
+            file_contents = file_io_context.read_file(path)
             file_lines = file_contents.split("\n")
             file_lines[start_line : start_line + truncate_n_lines] = new_lines
             new_contents = "\n".join(file_lines)
-            self.file_system.write_file(path, new_contents)
+            file_io_context.write_file(path, new_contents)
         except Exception as e:
             return TextEditorMutationResult(
                 new_state=state,
                 action_result=WriteFileResult(
                     success=False,
                     error=f"Failed to write to file: {str(e)}",
-                    closed_file_range=[],
                 ),
             )
 
@@ -302,5 +308,5 @@ class TextEditor:
         new_state = TextEditorState(open_files=new_open_files)
         return TextEditorMutationResult(
             new_state=new_state,
-            action_result=WriteFileResult(success=True, error="", closed_file_range=[]),
+            action_result=WriteFileResult(success=True, error=""),
         )
