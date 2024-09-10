@@ -10,7 +10,7 @@ from weave.trace import call_context
 
 from ..agent import AgentState, Agent
 from ..config import *
-from ..tools import tool_context, LocalToolContext, get_io_context
+from ..io_context import LocalIOContext, io_context, get_io_context
 
 # NOTES
 # - Try with other LLM and tool configs now that I have this test
@@ -20,7 +20,7 @@ from ..tools import tool_context, LocalToolContext, get_io_context
 @contextmanager
 def tempdir():
     with tempfile.TemporaryDirectory() as dir_:
-        with tool_context(LocalToolContext(dir_)) as tc:
+        with io_context(LocalIOContext(dir_)) as tc:
             yield tc
 
 
@@ -56,7 +56,7 @@ def eval_edit_memory(
             f.write(prev_file_contents)
 
         task_correct = False
-        state = AgentState()
+        state = agent.initial_state(history=[])
 
         def step6_insert_ampersands(lines):
             new_lines = []
@@ -156,8 +156,8 @@ def run_task(
     if call:
         call.set_display_name(f"Task{task_idx}: {task_name}")
     print(f"*** TASK: {task_idx}, {prompt}")
-    state = AgentState(
-        history=state.history
+    state = state.with_history(
+        state.history
         + [
             {
                 "role": "user",
@@ -168,7 +168,7 @@ def run_task(
     task_info = {"task_idx": task_idx}
     task_correct = False
     attempts = []
-    for attempt_idx in range(5):
+    for attempt_idx in range(2):
         attempt_result = run_attempt(config, agent, state, expected_lines, attempt_idx)
         attempt_info = attempt_result["attempt_info"]
         state = attempt_result["state"]
@@ -181,8 +181,8 @@ def run_task(
         print()
         print(f"*** FAILED ATTEMPT Task: {task_idx} Attempt: {attempt_idx}")
         print()
-        state = AgentState(
-            history=state.history
+        state = state.with_history(
+            state.history
             + [
                 {
                     "role": "user",
@@ -327,17 +327,18 @@ def run_trials(
 if __name__ == "__main__":
     weave.init("programmerdev-eval-edits1")
     agents = [
-        agent_4omini_basic,
-        agent_4o_basic,
-        agent_claude_basic,
-        agent_4o_replace,
-        agent_claude_replace,
-        agent_4o_splice,
-        agent_claude_splice,
+        # agent_4omini_basic,
+        # agent_4o_basic,
+        # agent_claude_basic,
+        # agent_4o_replace,
+        # agent_claude_replace,
+        # agent_4o_splice,
+        # agent_claude_splice,
+        agent_texteditor_4o_basic,
     ]
 
     config = EvalEditMemoryConfig(n_lines=100, run_timeout_seconds=60)
-    n_trials = 5
+    n_trials = 1
     config_s = f'bugfix_promptfix_{config["n_lines"]}lines_{config["run_timeout_seconds"]}timeout'
     results = {}
     for agent in agents:

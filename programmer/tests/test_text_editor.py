@@ -85,13 +85,29 @@ def test_replace_file_lines_at_boundary(text_editor, sample_file, initial_state)
     state3 = text_editor.open_file(state2, sample_file, 100).new_state
 
     # Replace 5 lines with 5 new lines (no net change)
-    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 4)
+    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 5)
     assert result.action_result.success
 
     # Try to replace 5 lines with 6 new lines (net increase of 1, should fail)
-    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 5)
+    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 6)
     assert not result.action_result.success
     assert "exceeding the maximum" in result.action_result.error
+
+
+def test_replace_file_lines_middle(text_editor, sample_file, initial_state):
+    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
+
+    # Replace 5 lines with 5 new lines (no net change)
+    result = text_editor.replace_file_lines(state1, sample_file, 5, 5, "A\nB\n")
+    assert result.action_result.success
+
+    # Try to replace 5 lines with 6 new lines (net increase of 1, should fail)
+    file_info = result.new_state.get_open_file_info()
+    assert file_info.open_file_buffers[sample_file].total_lines == 197
+    assert len(file_info.open_file_buffers[sample_file].buffers) == 1
+    buffer0 = file_info.open_file_buffers[sample_file].buffers[0]
+    assert buffer0.line_range.start_line == 0
+    assert buffer0.line_range.n_lines == 50
 
 
 def test_close_file_range(text_editor, sample_file, initial_state):

@@ -98,6 +98,16 @@ class OpenFileState:
     def total_lines(self) -> int:
         return sum(r.n_lines for r in self.ranges)
 
+    def is_range_open(self, start_line: int, n_lines: int) -> bool:
+        end_line = start_line + n_lines
+        for range in self.ranges:
+            if (
+                range.start_line <= start_line
+                and range.start_line + range.n_lines >= end_line
+            ):
+                return True
+        return False
+
 
 @dataclass(frozen=True)
 class TextEditorState:
@@ -273,8 +283,26 @@ class TextEditor:
         lines: str,
     ) -> TextEditorMutationResult[WriteFileResult]:
         file_io_context = get_io_context()
-        new_lines = lines.split("\n")
+
+        new_lines = lines.rstrip("\n").split("\n")
+
+        # Check if the range to be replaced is open
+        open_file_state = state.open_files.get(path)
+        if not open_file_state or not open_file_state.is_range_open(
+            start_line, truncate_n_lines
+        ):
+            return TextEditorMutationResult(
+                new_state=state,
+                action_result=WriteFileResult(
+                    success=False,
+                    error=f"The range to be replaced (lines {start_line} to {start_line + truncate_n_lines - 1}) is not fully open in the editor.",
+                ),
+            )
+
         net_change = len(new_lines) - truncate_n_lines
+        print(
+            "LINES", state.total_lines(), net_change, state.total_lines() + net_change
+        )
         if state.total_lines() + net_change > self.MAX_OPEN_SIZE:
             return TextEditorMutationResult(
                 new_state=state,
@@ -284,6 +312,7 @@ class TextEditor:
                 ),
             )
 
+        file_io_context = get_io_context()
         try:
             file_contents = file_io_context.read_file(path)
             file_lines = file_contents.split("\n")
@@ -298,21 +327,8 @@ class TextEditor:
                     error=f"Failed to write to file: {str(e)}",
                 ),
             )
-
-        new_open_files = dict(state.open_files)
-        if path not in new_open_files:
-            new_open_files[path] = OpenFileState()
-
-        new_range = LineRange(start_line, len(new_lines))
-        new_open_files[path] = (
-            new_open_files[path]
-            .subtract_range(LineRange(start_line, truncate_n_lines))
-            .add_range(new_range)
-        )
-
-        new_state = TextEditorState(open_files=new_open_files)
         return TextEditorMutationResult(
-            new_state=new_state,
+            new_state=state,
             action_result=WriteFileResult(success=True, error=""),
         )
 

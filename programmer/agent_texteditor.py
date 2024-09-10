@@ -91,6 +91,9 @@ class AgentTextEditor(Agent):
             {"role": "system", "content": self.system_message},
         ]
         open_file_info = state.text_editor_state.get_open_file_info()
+
+        messages += state.history
+
         messages.append(
             {
                 "role": "system",
@@ -98,15 +101,14 @@ class AgentTextEditor(Agent):
             }
         )
 
-        messages += state.history
-
         self_tools = [*self.tools] or []
 
         text_editor_stateful = TextEditorStateful(
             self.text_editor, state.text_editor_state
         )
 
-        self_tools += [open_file, close_file_range, replace_file_lines]
+        # self_tools += [open_file, close_file_range, replace_file_lines]
+        self_tools += [open_file, replace_file_lines]
 
         # make type checkers happy by passing NotGiven instead of None
         tools = None
@@ -147,6 +149,8 @@ class AgentTextEditor(Agent):
                 new_messages.extend(
                     perform_tool_calls(self_tools, response_message.tool_calls)
                 )
-        next_state = state.with_history(new_messages)
+        new_history = weavelist_add(state.history, new_messages)
+
+        next_state = state.with_history(new_history)
         next_state = next_state.with_texteditor_state(text_editor_stateful.state)
         return next_state
