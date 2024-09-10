@@ -47,7 +47,52 @@ def init_from_settings() -> WeaveClient:
         raise ValueError(f"Invalid weave_logging setting: {weave_logging_setting}")
 
 
-client = init_from_settings()
+client: WeaveClient = None
+
+# Add sidebar for Weave project configuration
+with st.sidebar:
+    st.header("Weave Project Configuration")
+
+    # Initialize from settings
+    initial_weave_logging = SettingsManager.get_setting("weave_logging")
+    initial_project_type = "local" if initial_weave_logging == "local" else "cloud"
+    initial_project_path = (
+        os.path.join(SettingsManager.PROGRAMMER_DIR, "weave.db")
+        if initial_weave_logging == "local"
+        else ""
+    )
+    initial_project_name = (
+        f"programmer-{os.path.basename(os.path.abspath(os.curdir))}"
+        if initial_weave_logging == "cloud"
+        else ""
+    )
+
+    project_type = st.radio(
+        "Project Type",
+        ["local", "cloud"],
+        index=0 if initial_project_type == "local" else 1,
+    )
+
+    if project_type == "local":
+        project_path = st.text_input("Local DB Path", value=initial_project_path)
+    else:
+        project_name = st.text_input("Cloud Project Name", value=initial_project_name)
+
+    if project_type == "local":
+        # SettingsManager.set_setting("weave_logging", "local")
+        # SettingsManager.set_setting("weave_db_path", project_path)
+        client = init_local_weave(project_path)
+        print("C2", client._project_id())
+    else:
+        # SettingsManager.set_setting("weave_logging", "cloud")
+        # SettingsManager.set_setting("weave_project_name", project_name)
+        client = init_remote_weave(project_name)
+        print("C3", client._project_id())
+    st.success("Configuration applied successfully!")
+
+# Initialize client based on current settings
+# client = init_from_settings()
+print("CLIENT", client._project_id())
 
 
 def set_focus_step_id(call_id):
@@ -184,6 +229,7 @@ session_user_message_df = session_calls_df["inputs.agent_state.history"].apply(
 
 
 with st.sidebar:
+    st.header("Session Selection")
     if st.button("Refresh"):
         st.cache_data.clear()
         st.rerun()
