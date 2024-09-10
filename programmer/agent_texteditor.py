@@ -1,7 +1,6 @@
-from typing import Any, Optional, Union
+from typing import Any, Union
 from pydantic import Field
 import litellm
-import time
 from openai.types.chat import (
     ChatCompletionMessageParam,
 )
@@ -12,8 +11,15 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
-from .text_editor import TextEditor, TextEditorState, TextEditorStateful
-from .environment import get_current_environment, EnvironmentSnapshotKey
+from .text_editor import (
+    TextEditor,
+    TextEditorState,
+    TextEditorStateful,
+    open_file,
+    close_file_range,
+    replace_file_lines,
+    text_editor,
+)
 from .agent import AgentState, Agent
 
 
@@ -100,63 +106,6 @@ class AgentTextEditor(Agent):
             self.text_editor, state.text_editor_state
         )
 
-        # @weave.op
-        def open_file(path: str, start_line: int) -> str:
-            f"""Open a buffer of {self.text_editor.OPEN_CHUNK_SIZE} lines from the given file.
-
-            Args:
-                path: The path to the file.
-                start_line: The line number to start reading from (0-indexed).
-
-            Returns:
-                "success" if the file was opened successfully,
-                "error: <error message>" if the file was not opened successfully.
-            """
-            response = text_editor_stateful.open_file(path, start_line)
-            if response.action_result.success:
-                return "success"
-            else:
-                return f"error: {response.action_result.error}"
-
-        # @weave.op
-        def close_file_range(path: str, start_line: int, n_lines: int) -> str:
-            """Close a buffer of lines from the given file.
-
-            Args:
-                path: The path to the file.
-                start_line: The line number to start reading from (0-indexed).
-                n_lines: The number of lines to close.
-
-            Returns:
-                "success" if the file was closed successfully.
-            """
-            response = text_editor_stateful.close_file_range(path, start_line, n_lines)
-            return "success"
-
-        # @weave.op
-        def replace_file_lines(
-            path: str, start_line: int, n_lines: int, lines: str
-        ) -> str:
-            """Replace a buffer of lines in the given file.
-
-            Args:
-                path: The path to the file.
-                start_line: The line number to start reading from (0-indexed).
-                n_lines: The number of lines to replace.
-                lines: The lines to replace the existing lines with.
-
-            Returns:
-                "success" if the file was replaced successfully,
-                "error: <error message>" if the file was not replaced successfully.
-            """
-            response = self.text_editor.replace_file_lines(
-                state.text_editor_state, path, start_line, n_lines, lines
-            )
-            if response.action_result.success:
-                return "success"
-            else:
-                return f"error: {response.action_result.error}"
-
         self_tools += [open_file, close_file_range, replace_file_lines]
 
         # make type checkers happy by passing NotGiven instead of None
@@ -194,23 +143,10 @@ class AgentTextEditor(Agent):
         # instead of mixing in some pydantic objects.
         new_messages.append(response_message.model_dump(exclude_none=True))
         if response_message.tool_calls:
-            new_messages.extend(
-                perform_tool_calls(self_tools, response_message.tool_calls)
-            )
+            with text_editor(text_editor_stateful):
+                new_messages.extend(
+                    perform_tool_calls(self_tools, response_message.tool_calls)
+                )
         next_state = state.with_history(new_messages)
         next_state = next_state.with_texteditor_state(text_editor_stateful.state)
         return next_state
-
-    @weave.op()
-    def run(self, state: AgentStateTextEditor, max_runtime_seconds: int = -1):
-        start_time = time.time()
-        while True:
-            last_message = state.history[-1]
-            if last_message["role"] == "assistant" and "tool_calls" not in last_message:
-                return {"state": state, "stop_reason": "done"}
-            state = self.step(state)
-            if (
-                max_runtime_seconds > 0
-                and time.time() - start_time > max_runtime_seconds
-            ):
-                return {"state": state, "stop_reason": "time_limit_exceeded"}

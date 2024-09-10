@@ -1,5 +1,10 @@
 from typing import Optional, Generic, TypeVar
 from dataclasses import dataclass, field
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Optional, Union
+
+import weave
 
 from .io_context import get_io_context
 
@@ -341,3 +346,82 @@ class TextEditorStateful:
         )
         self.state = result.new_state
         return result
+
+
+_text_editor_context: ContextVar[Optional[TextEditorStateful]] = ContextVar(
+    "_text_editor_context", default=None
+)
+
+
+@contextmanager
+def text_editor(context: TextEditorStateful):
+    token = _text_editor_context.set(context)
+    try:
+        yield context
+    finally:
+        _text_editor_context.reset(token)
+
+
+def require_text_editor() -> TextEditorStateful:
+    context = _text_editor_context.get()
+    assert context is not None
+    return context
+
+
+@weave.op
+def open_file(path: str, start_line: int) -> str:
+    f"""Open a buffer of lines from the given file.
+
+    Args:
+        path: The path to the file.
+        start_line: The line number to start reading from (0-indexed).
+
+    Returns:
+        "success" if the file was opened successfully,
+        "error: <error message>" if the file was not opened successfully.
+    """
+    text_editor = require_text_editor()
+    response = text_editor.open_file(path, start_line)
+    if response.action_result.success:
+        return "success"
+    else:
+        return f"error: {response.action_result.error}"
+
+
+@weave.op
+def close_file_range(path: str, start_line: int, n_lines: int) -> str:
+    """Close a buffer of lines from the given file.
+
+    Args:
+        path: The path to the file.
+        start_line: The line number to start reading from (0-indexed).
+        n_lines: The number of lines to close.
+
+    Returns:
+        "success" if the file was closed successfully.
+    """
+    text_editor = require_text_editor()
+    response = text_editor.close_file_range(path, start_line, n_lines)
+    return "success"
+
+
+@weave.op
+def replace_file_lines(path: str, start_line: int, n_lines: int, lines: str) -> str:
+    """Replace a buffer of lines in the given file.
+
+    Args:
+        path: The path to the file.
+        start_line: The line number to start reading from (0-indexed).
+        n_lines: The number of lines to replace.
+        lines: The lines to replace the existing lines with.
+
+    Returns:
+        "success" if the file was replaced successfully,
+        "error: <error message>" if the file was not replaced successfully.
+    """
+    text_editor = require_text_editor()
+    response = text_editor.replace_file_lines(path, start_line, n_lines, lines)
+    if response.action_result.success:
+        return "success"
+    else:
+        return f"error: {response.action_result.error}"
