@@ -12,7 +12,7 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
-from .text_editor import TextEditor, TextEditorState
+from .text_editor import TextEditor, TextEditorState, TextEditorStateful
 from .environment import get_current_environment, EnvironmentSnapshotKey
 from .agent import AgentState, Agent
 
@@ -96,7 +96,9 @@ class AgentTextEditor(Agent):
 
         self_tools = [*self.tools] or []
 
-        te_state = {"state": state.text_editor_state}
+        text_editor_stateful = TextEditorStateful(
+            self.text_editor, state.text_editor_state
+        )
 
         # @weave.op
         def open_file(path: str, start_line: int) -> str:
@@ -110,10 +112,7 @@ class AgentTextEditor(Agent):
                 "success" if the file was opened successfully,
                 "error: <error message>" if the file was not opened successfully.
             """
-            response = self.text_editor.open_file(
-                state.text_editor_state, path, start_line
-            )
-            te_state["state"] = response.new_state
+            response = text_editor_stateful.open_file(path, start_line)
             if response.action_result.success:
                 return "success"
             else:
@@ -131,10 +130,7 @@ class AgentTextEditor(Agent):
             Returns:
                 "success" if the file was closed successfully.
             """
-            response = self.text_editor.close_file_range(
-                state.text_editor_state, path, start_line, n_lines
-            )
-            te_state["state"] = response.new_state
+            response = text_editor_stateful.close_file_range(path, start_line, n_lines)
             return "success"
 
         # @weave.op
@@ -156,7 +152,6 @@ class AgentTextEditor(Agent):
             response = self.text_editor.replace_file_lines(
                 state.text_editor_state, path, start_line, n_lines, lines
             )
-            te_state["state"] = response.new_state
             if response.action_result.success:
                 return "success"
             else:
@@ -203,7 +198,7 @@ class AgentTextEditor(Agent):
                 perform_tool_calls(self_tools, response_message.tool_calls)
             )
         next_state = state.with_history(new_messages)
-        next_state = next_state.with_texteditor_state(te_state["state"])
+        next_state = next_state.with_texteditor_state(text_editor_stateful.state)
         return next_state
 
     @weave.op()

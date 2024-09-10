@@ -310,3 +310,34 @@ class TextEditor:
             new_state=new_state,
             action_result=WriteFileResult(success=True, error=""),
         )
+
+
+class TextEditorStateful:
+    def __init__(self, text_editor: TextEditor, initial_state: TextEditorState):
+        self.text_editor = text_editor
+        self.state = initial_state
+
+    def open_file(
+        self, path: str, start_line: int
+    ) -> TextEditorMutationResult[OpenFileResult]:
+        result = self.text_editor.open_file(self.state, path, start_line)
+        self.state = result.new_state
+        return result
+
+    def close_file_range(
+        self, path: str, start_line: int, n_lines: int
+    ) -> TextEditorMutationResult[None]:
+        result = self.text_editor.close_file_range(
+            self.state, path, start_line, n_lines
+        )
+        self.state = result.new_state
+        return result
+
+    def replace_file_lines(
+        self, path: str, start_line: int, truncate_n_lines: int, lines: str
+    ) -> TextEditorMutationResult[WriteFileResult]:
+        result = self.text_editor.replace_file_lines(
+            self.state, path, start_line, truncate_n_lines, lines
+        )
+        self.state = result.new_state
+        return result
