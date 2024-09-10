@@ -1,5 +1,7 @@
 import inspect
 import json
+import traceback
+
 from typing import Callable, get_type_hints
 
 from openai.types.chat import ChatCompletionMessageToolCall, ChatCompletionToolParam
@@ -96,12 +98,15 @@ def perform_tool_calls(
         try:
             function_args = json.loads(tool_call.function.arguments)
         except json.JSONDecodeError as e:
-            function_response = str(e)
+            print(f"Tool call {tool_call_s} failed to parse arguments: {e}")
+            function_response = f"Argument parse error: {str(e)}"
         if not function_response:
             try:
                 function_response = tool(**function_args)
             except Exception as e:
-                function_response = str(e)
+                print(f"Error occurred in tool {function_name}:")
+                traceback.print_exc()
+                function_response = f"Error: {str(e)}"
 
         additional_message = None
         if isinstance(function_response, tuple):

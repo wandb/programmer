@@ -39,6 +39,12 @@ class AgentState(weave.Object):
     history: list[Any] = Field(default_factory=list)
     env_snapshot_key: Optional[EnvironmentSnapshotKey] = None
 
+    def with_history(self, history: list[Any]) -> "AgentState":
+        environment = get_current_environment()
+        msg = get_commit_message(history)
+        snapshot_key = environment.make_snapshot(msg)
+        return self.__class__(history=history, env_snapshot_key=snapshot_key)
+
 
 def unweavify(v: Any) -> Any:
     if isinstance(v, list):
@@ -54,6 +60,9 @@ class Agent(weave.Object):
     temperature: float
     system_message: str
     tools: list[Any] = Field(default_factory=list)
+
+    def initial_state(self, history: list[Any]) -> AgentState:
+        return AgentState().with_history(history)
 
     @weave.op()
     def step(self, state: AgentState) -> AgentState:
@@ -118,12 +127,8 @@ class Agent(weave.Object):
 
         # new_history = state.history + new_messages
         new_history = weavelist_add(state.history, new_messages)
-        msg = get_commit_message(new_history)
 
-        environment = get_current_environment()
-        snapshot_key = environment.make_snapshot(msg)
-
-        return AgentState(history=new_history, env_snapshot_key=snapshot_key)
+        return state.with_history(new_history)
 
     @weave.op()
     def run(self, state: AgentState, max_runtime_seconds: int = -1):
