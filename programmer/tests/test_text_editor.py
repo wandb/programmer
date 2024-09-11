@@ -85,11 +85,19 @@ def test_replace_file_lines_at_boundary(text_editor, sample_file, initial_state)
     state3 = text_editor.open_file(state2, sample_file, 100).new_state
 
     # Replace 5 lines with 5 new lines (no net change)
-    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 5)
+    result = text_editor.replace_file_lines(
+        state3,
+        sample_file,
+        [{"start_line": 0, "n_lines": 5, "lines": "New Line\n" * 5}],
+    )
     assert result.action_result.success
 
     # Try to replace 5 lines with 6 new lines (net increase of 1, should fail)
-    result = text_editor.replace_file_lines(state3, sample_file, 0, 5, "New Line\n" * 6)
+    result = text_editor.replace_file_lines(
+        state3,
+        sample_file,
+        [{"start_line": 0, "n_lines": 5, "lines": "New Line\n" * 6}],
+    )
     assert not result.action_result.success
     assert "exceeding the maximum" in result.action_result.error
 
@@ -98,7 +106,11 @@ def test_replace_file_lines_middle(text_editor, sample_file, initial_state):
     state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
 
     # Replace 5 lines with 5 new lines (no net change)
-    result = text_editor.replace_file_lines(state1, sample_file, 5, 5, "A\nB\n")
+    result = text_editor.replace_file_lines(
+        state1,
+        sample_file,
+        [{"start_line": 5, "n_lines": 5, "lines": "A\nB\n"}],
+    )
     assert result.action_result.success
 
     # Try to replace 5 lines with 6 new lines (net increase of 1, should fail)
