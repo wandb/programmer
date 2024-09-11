@@ -6,10 +6,16 @@ import json
 import streamlit as st
 import weave
 import os
+import openai
 from weave.trace.weave_client import WeaveClient
 
 from programmer.weave_next.api import init_local_client
-from programmer.weave_next.weave_query import calls, expand_refs
+from programmer.weave_next.weave_query import (
+    calls,
+    expand_refs,
+    get_call,
+    expand_json_refs,
+)
 from programmer.settings_manager import SettingsManager
 
 st.set_page_config(layout="wide")
@@ -88,7 +94,6 @@ with st.sidebar:
         # SettingsManager.set_setting("weave_project_name", project_name)
         client = init_remote_weave(project_name)
         print("C3", client._project_id())
-    st.success("Configuration applied successfully!")
 
 # Initialize client based on current settings
 # client = init_from_settings()
@@ -119,6 +124,16 @@ def cached_calls(
 @st.cache_data(hash_funcs=ST_HASH_FUNCS)
 def cached_expand_refs(wc: WeaveClient, refs: Sequence[str]):
     return expand_refs(wc, refs).to_pandas()
+
+
+@st.cache_data(hash_funcs=ST_HASH_FUNCS)
+def cached_get_call(wc: WeaveClient, call_id: str):
+    return get_call(wc, call_id)
+
+
+@st.cache_data(hash_funcs=ST_HASH_FUNCS)
+def cached_expand_json_refs(wc: WeaveClient, json: dict) -> dict:
+    return expand_json_refs(wc, json)
 
 
 def print_step_call(call):
@@ -219,31 +234,79 @@ def print_session_call(session_id):
         )
 
 
-session_calls_df = cached_calls(client, "session", expand_refs=["inputs.agent_state"])
-if len(session_calls_df) == 0:
-    st.error("No programmer sessions found.")
-    st.stop()
-session_user_message_df = session_calls_df["inputs.agent_state.history"].apply(
-    lambda v: v[-1]["content"]
-)
+def sessions_page():
+    session_calls_df = cached_calls(
+        client, "session", expand_refs=["inputs.agent_state"]
+    )
+    if len(session_calls_df) == 0:
+        st.error("No programmer sessions found.")
+        st.stop()
+    session_user_message_df = session_calls_df["inputs.agent_state.history"].apply(
+        lambda v: v[-1]["content"]
+    )
+    with st.sidebar:
+        st.header("Session Selection")
+        if st.button("Refresh"):
+            st.cache_data.clear()
+            st.rerun()
+        message_ids = {
+            f"{cid[-5:]}: {m}": cid
+            for cid, m in reversed(
+                list(zip(session_calls_df["id"], session_user_message_df))
+            )
+        }
+        sel_message = st.radio("Session", options=message_ids.keys())
+        sel_id = None
+        if sel_message:
+            sel_id = message_ids.get(sel_message)
+    if sel_id:
+        st.header(f"Session: {sel_id}")
+        print_session_call(sel_id)
 
 
-with st.sidebar:
-    st.header("Session Selection")
-    if st.button("Refresh"):
-        st.cache_data.clear()
-        st.rerun()
-    message_ids = {
-        f"{cid[-5:]}: {m}": cid
-        for cid, m in reversed(
-            list(zip(session_calls_df["id"], session_user_message_df))
-        )
+sessions_pg = st.Page(sessions_page, title="Sessions")
+
+
+def write_chat_message(m, key):
+    with st.chat_message(m["role"]):
+        st.text_area("", value=str(m), label_visibility="collapsed", key=key)
+
+
+def playground_page():
+    st.write("Playground")
+    call_id = st.text_input("Call ID")
+    if not call_id:
+        st.error("Please set call ID")
+    call = cached_get_call(client, call_id)
+    st.write(call["op_name"])
+
+    expanded_call = cached_expand_json_refs(client, call)
+
+    inputs = expanded_call["inputs"]
+    all_input_messages = inputs["messages"]
+    other_inputs = {
+        k: v
+        for k, v in inputs.items()
+        if (k != "messages" and k != "self" and k != "stream")
     }
-    sel_message = st.radio("Session", options=message_ids.keys())
-    sel_id = None
-    if sel_message:
-        sel_id = message_ids.get(sel_message)
 
-if sel_id:
-    st.header(f"Session: {sel_id}")
-    print_session_call(sel_id)
+    for i, m in enumerate(all_input_messages):
+        write_chat_message(m, f"message-{i}")
+    output = expanded_call["output"]["choices"][0]["message"]
+    if st.button("Generate"):
+        chat_inputs = {**other_inputs, "messages": all_input_messages}
+        response = openai.chat.completions.create(**chat_inputs).model_dump()
+        output = response["choices"][0]["message"]
+    write_chat_message(output, "output_message")
+
+    all_messages = [*all_input_messages, output]
+    st.json(all_messages, expanded=False)
+
+    # st.write(expanded_call)
+
+
+playground_pg = st.Page(playground_page, title="Playground")
+
+
+pg = st.navigation([sessions_pg, playground_pg])
+pg.run()
