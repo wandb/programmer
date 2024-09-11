@@ -156,7 +156,9 @@ class OpenFileInfoResult:
     open_file_buffers: dict[str, OpenFileInfo] = field(default_factory=dict)
 
     def format_for_messages(self) -> str:
-        lines = ["The following file line ranges are currently open"]
+        lines = [
+            "Visible file buffers. These are the latest states of any previously opened file ranges, and reflect the results of all prior edits."
+        ]
         for path, open_file_info in self.open_file_buffers.items():
             lines.append(f"<file {path}>")
             lines.append(f"<file_info total_lines={open_file_info.total_lines} />")

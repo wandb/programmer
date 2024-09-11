@@ -92,6 +92,13 @@ class AgentTextEditor(Agent):
         ]
         open_file_info = state.text_editor_state.get_open_file_info()
 
+        messages.append(
+            {
+                "role": "system",
+                "content": open_file_info.format_for_messages(),
+            }
+        )
+
         messages += state.history
 
         messages.append(
