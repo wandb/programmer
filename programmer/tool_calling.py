@@ -1,12 +1,51 @@
 import inspect
 import json
 import traceback
+import typing_extensions
 
-from typing import Callable, get_type_hints
+from typing import Any, Callable, get_type_hints, TypedDict
 
 from openai.types.chat import ChatCompletionMessageToolCall, ChatCompletionToolParam
 
 from .console import Console
+
+
+class TypedDictLike:
+    __required_keys__: frozenset[str]
+
+
+def is_typed_dict_like(t: type) -> typing_extensions.TypeGuard[TypedDictLike]:
+    return hasattr(t, "__required_keys__")
+
+
+def pytype_to_jsonschema(pytype: Any) -> dict:
+    if pytype.__name__ == "str":
+        return {"type": "string"}
+    elif pytype.__name__ == "int":
+        return {"type": "integer"}
+    elif is_typed_dict_like(pytype):
+        return {
+            "type": "object",
+            "properties": {
+                k: pytype_to_jsonschema(v) for k, v in pytype.__annotations__.items()
+            },
+            "required": list(pytype.__annotations__.keys()),
+        }
+    elif pytype.__name__ == "list":
+        return {"type": "array", "items": pytype_to_jsonschema(pytype.__args__[0])}
+    elif hasattr(pytype, "__members__"):
+        member_types = [
+            pytype_to_jsonschema(type(v.value)) for v in pytype.__members__.values()
+        ]
+        t0 = member_types[0]
+        for t in member_types[1:]:
+            if t != t0:
+                raise ValueError("All member types must be the same")
+        mem_type = t0["type"]
+        if mem_type != "string" and mem_type != "integer":
+            raise ValueError(f"Enum member type {mem_type} is not supported")
+        return {"type": mem_type, "enum": [e.value for e in pytype]}
+    raise ValueError(f"Unsupported type: {pytype.__name__}")
 
 
 def generate_json_schema(func: Callable) -> dict:
@@ -42,27 +81,17 @@ def generate_json_schema(func: Callable) -> dict:
         is_required = param.default == inspect.Parameter.empty
 
         # Extract parameter type and description
-        param_type = type_hints[name].__name__ if name in type_hints else "string"
-        if param_type == "str":
-            param_type = "string"
-        elif param_type == "int":
-            param_type = "integer"
-        param_desc = ""
+        param_schema = pytype_to_jsonschema(type_hints[name])
 
         # Attempt to extract description from docstring
+        param_desc = ""
         if func.__doc__:
             doc_lines = func.__doc__.split("\n")[1:]
             for line in doc_lines:
                 if name in line:
                     param_desc = line.strip().split(":")[-1].strip()
                     break
-
-        # Populate schema for this parameter
-        param_schema = {"type": param_type, "description": param_desc}
-
-        # Handle special case for enums
-        if hasattr(type_hints[name], "__members__"):  # Check if it's an Enum
-            param_schema["enum"] = [e.value for e in type_hints[name]]
+        param_schema["description"] = param_desc
 
         schema["function"]["parameters"]["properties"][name] = param_schema  # type: ignore
 

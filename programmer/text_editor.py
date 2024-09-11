@@ -2,7 +2,7 @@ from typing import Optional, Generic, TypeVar
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional, Union
+from typing import Optional, TypedDict
 
 import weave
 
@@ -197,6 +197,12 @@ class TextEditorMutationResult(Generic[T]):
     action_result: T
 
 
+class LineRangeReplacement(TypedDict):
+    start_line: int
+    n_lines: int
+    lines: str
+
+
 class TextEditor:
     def __init__(
         self,
@@ -278,30 +284,58 @@ class TextEditor:
         self,
         state: TextEditorState,
         path: str,
-        start_line: int,
-        truncate_n_lines: int,
-        lines: str,
+        replacements: list[LineRangeReplacement],
     ) -> TextEditorMutationResult[WriteFileResult]:
         file_io_context = get_io_context()
 
-        new_lines = lines.rstrip("\n").split("\n")
-
-        # Check if the range to be replaced is open
+        # Check if the file is open
         open_file_state = state.open_files.get(path)
-        if not open_file_state or not open_file_state.is_range_open(
-            start_line, truncate_n_lines
-        ):
+        if not open_file_state:
             return TextEditorMutationResult(
                 new_state=state,
                 action_result=WriteFileResult(
                     success=False,
-                    error=f"The range to be replaced (lines {start_line} to {start_line + truncate_n_lines - 1}) is not fully open in the editor.",
+                    error=f"The file {path} is not open.",
                 ),
             )
 
-        net_change = len(new_lines) - truncate_n_lines
-        print(
-            "LINES", state.total_lines(), net_change, state.total_lines() + net_change
+        # Check if all ranges are open
+        missing_ranges = []
+        for replacement in replacements:
+            if not open_file_state.is_range_open(
+                replacement["start_line"], replacement["n_lines"]
+            ):
+                missing_ranges.append(replacement)
+        if missing_ranges:
+            return TextEditorMutationResult(
+                new_state=state,
+                action_result=WriteFileResult(
+                    success=False,
+                    error=f"The following ranges are not open: {missing_ranges}",
+                ),
+            )
+
+        # Sort replacements by start line
+        replacements.sort(key=lambda x: x["start_line"])
+
+        # Ensure replacements are non-overlapping
+        for i in range(len(replacements) - 1):
+            if (
+                replacements[i]["start_line"] + replacements[i]["n_lines"]
+                > replacements[i + 1]["start_line"]
+            ):
+                return TextEditorMutationResult(
+                    new_state=state,
+                    action_result=WriteFileResult(
+                        success=False,
+                        error=f"The following replacements are overlapping: {replacements[i]}, {replacements[i+1]}",
+                    ),
+                )
+
+        all_new_lines = [l["lines"].rstrip("\n").split("\n") for l in replacements]
+
+        net_change = sum(len(l) for l in all_new_lines) - sum(
+            l["n_lines"] for l in replacements
         )
         if state.total_lines() + net_change > self.MAX_OPEN_SIZE:
             return TextEditorMutationResult(
@@ -316,9 +350,6 @@ class TextEditor:
         try:
             file_contents = file_io_context.read_file(path)
             file_lines = file_contents.split("\n")
-            file_lines[start_line : start_line + truncate_n_lines] = new_lines
-            new_contents = "\n".join(file_lines)
-            file_io_context.write_file(path, new_contents)
         except Exception as e:
             return TextEditorMutationResult(
                 new_state=state,
@@ -327,6 +358,16 @@ class TextEditor:
                     error=f"Failed to write to file: {str(e)}",
                 ),
             )
+
+        # Apply replacements in reverse order to indexes don't change while iterating
+        for i, replacement in reversed(list(enumerate(replacements))):
+            start_line = replacement["start_line"]
+            n_lines = replacement["n_lines"]
+            file_lines[start_line : start_line + n_lines] = all_new_lines[i]
+
+        new_contents = "\n".join(file_lines)
+
+        file_io_context.write_file(path, new_contents)
         return TextEditorMutationResult(
             new_state=state,
             action_result=WriteFileResult(success=True, error=""),
@@ -338,30 +379,26 @@ class TextEditorStateful:
         self.text_editor = text_editor
         self.state = initial_state
 
-    def open_file(
-        self, path: str, start_line: int
-    ) -> TextEditorMutationResult[OpenFileResult]:
+    def open_file(self, path: str, start_line: int) -> OpenFileResult:
         result = self.text_editor.open_file(self.state, path, start_line)
         self.state = result.new_state
-        return result
+        return result.action_result
 
-    def close_file_range(
-        self, path: str, start_line: int, n_lines: int
-    ) -> TextEditorMutationResult[None]:
+    def close_file_range(self, path: str, start_line: int, n_lines: int) -> None:
         result = self.text_editor.close_file_range(
             self.state, path, start_line, n_lines
         )
         self.state = result.new_state
-        return result
+        return result.action_result
 
     def replace_file_lines(
-        self, path: str, start_line: int, truncate_n_lines: int, lines: str
-    ) -> TextEditorMutationResult[WriteFileResult]:
-        result = self.text_editor.replace_file_lines(
-            self.state, path, start_line, truncate_n_lines, lines
-        )
+        self,
+        path: str,
+        replacements: list[LineRangeReplacement],
+    ) -> WriteFileResult:
+        result = self.text_editor.replace_file_lines(self.state, path, replacements)
         self.state = result.new_state
-        return result
+        return result.action_result
 
 
 _text_editor_context: ContextVar[Optional[TextEditorStateful]] = ContextVar(
@@ -398,10 +435,10 @@ def open_file(path: str, start_line: int) -> str:
     """
     text_editor = require_text_editor()
     response = text_editor.open_file(path, start_line)
-    if response.action_result.success:
+    if response.success:
         return "success"
     else:
-        return f"error: {response.action_result.error}"
+        return f"error: {response.error}"
 
 
 @weave.op
@@ -422,7 +459,7 @@ def close_file_range(path: str, start_line: int, n_lines: int) -> str:
 
 
 @weave.op
-def replace_file_lines(path: str, start_line: int, n_lines: int, lines: str) -> str:
+def replace_file_lines(path: str, replacements: list[LineRangeReplacement]) -> str:
     """Replace a buffer of lines in the given file.
 
     Args:
@@ -436,8 +473,8 @@ def replace_file_lines(path: str, start_line: int, n_lines: int, lines: str) -> 
         "error: <error message>" if the file was not replaced successfully.
     """
     text_editor = require_text_editor()
-    response = text_editor.replace_file_lines(path, start_line, n_lines, lines)
-    if response.action_result.success:
+    response = text_editor.replace_file_lines(path, replacements)
+    if response.success:
         return "success"
     else:
-        return f"error: {response.action_result.error}"
+        return f"error: {response.error}"
