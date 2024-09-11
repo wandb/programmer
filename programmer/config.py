@@ -108,3 +108,12 @@ agent_texteditor_4o_basic = AgentTextEditor(
     text_editor=text_editor,
     tools=[list_files, run_command, view_image],
 )
+
+agent_texteditor_4o_basic_temp0 = AgentTextEditor(
+    name="gpt-4o-2024-08-06_texteditor_basic_temp0",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.0,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)

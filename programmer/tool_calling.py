@@ -91,6 +91,10 @@ def generate_json_schema(func: Callable) -> dict:
                 if name in line:
                     param_desc = line.strip().split(":")[-1].strip()
                     break
+        if not param_desc:
+            raise ValueError(
+                f"Function {func.__name__} description for parameter {name} is missing"
+            )
         param_schema["description"] = param_desc
 
         schema["function"]["parameters"]["properties"][name] = param_schema  # type: ignore

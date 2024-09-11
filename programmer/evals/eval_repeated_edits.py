@@ -335,11 +335,12 @@ if __name__ == "__main__":
         # agent_4o_splice,
         # agent_claude_splice,
         agent_texteditor_4o_basic,
+        agent_texteditor_4o_basic_temp0,
     ]
 
     config = EvalEditMemoryConfig(n_lines=100, run_timeout_seconds=60)
-    n_trials = 1
-    config_s = f'bugfix_promptfix_{config["n_lines"]}lines_{config["run_timeout_seconds"]}timeout'
+    n_trials = 50
+    config_s = f'{config["n_lines"]}lines_{config["run_timeout_seconds"]}timeout'
     results = {}
     for agent in agents:
         run_name = f"{agent.name}_{config_s}"

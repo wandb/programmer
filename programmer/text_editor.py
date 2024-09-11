@@ -126,7 +126,9 @@ class TextEditorState:
             for range in open_file.ranges:
                 buffer = Buffer(
                     line_range=range,
-                    lines=lines[range.start_line : range.start_line + range.n_lines],
+                    lines=lines[
+                        range.start_line - 1 : range.start_line - 1 + range.n_lines
+                    ],
                 )
                 buffers.append(buffer)
             open_file_info = OpenFileInfo(
@@ -229,7 +231,16 @@ class TextEditor:
         file_lines = file_contents.split("\n")
         file_lines_count = len(file_lines)
 
-        if start_line >= file_lines_count:
+        if start_line < 1:
+            return TextEditorMutationResult(
+                new_state=state,
+                action_result=OpenFileResult(
+                    success=False,
+                    error=f"Start line {start_line} is before the start of the file.",
+                ),
+            )
+
+        if start_line - 1 >= file_lines_count:
             return TextEditorMutationResult(
                 new_state=state,
                 action_result=OpenFileResult(
@@ -365,7 +376,7 @@ class TextEditor:
         for i, replacement in reversed(list(enumerate(replacements))):
             start_line = replacement["start_line"]
             n_lines = replacement["n_lines"]
-            file_lines[start_line : start_line + n_lines] = all_new_lines[i]
+            file_lines[start_line - 1 : start_line - 1 + n_lines] = all_new_lines[i]
 
         new_contents = "\n".join(file_lines)
 
@@ -425,11 +436,11 @@ def require_text_editor() -> TextEditorStateful:
 
 @weave.op
 def open_file(path: str, start_line: int) -> str:
-    f"""Open a buffer of lines from the given file.
+    """Open a buffer of lines from the given file.
 
     Args:
         path: The path to the file.
-        start_line: The line number to start reading from (0-indexed).
+        start_line: The line number to start reading from (1-indexed).
 
     Returns:
         "success" if the file was opened successfully,
@@ -449,7 +460,7 @@ def close_file_range(path: str, start_line: int, n_lines: int) -> str:
 
     Args:
         path: The path to the file.
-        start_line: The line number to start reading from (0-indexed).
+        start_line: The line number to start reading from (1-indexed).
         n_lines: The number of lines to close.
 
     Returns:
@@ -462,13 +473,11 @@ def close_file_range(path: str, start_line: int, n_lines: int) -> str:
 
 @weave.op
 def replace_file_lines(path: str, replacements: list[LineRangeReplacement]) -> str:
-    """Replace a buffer of lines in the given file.
+    """Replace ranges of lines within a file. Changes must be made to open ranges, and will be reflected immediately on the filesystem.
 
     Args:
         path: The path to the file.
-        start_line: The line number to start reading from (0-indexed).
-        n_lines: The number of lines to replace.
-        lines: The lines to replace the existing lines with.
+        replacements: A list of replacements to make. Each replacement is a dictionary with keys: start_line (1-indexed), n_lines (the number of lines to remove), lines (a string of newline separated lines)
 
     Returns:
         "success" if the file was replaced successfully,

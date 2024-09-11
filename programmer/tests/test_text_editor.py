@@ -38,7 +38,7 @@ def initial_state():
 
 
 def test_open_file(text_editor, sample_file, initial_state):
-    result = text_editor.open_file(initial_state, sample_file, 0)
+    result = text_editor.open_file(initial_state, sample_file, 1)
     assert isinstance(result, TextEditorMutationResult)
     assert isinstance(result.action_result, OpenFileResult)
     assert result.action_result.success
@@ -53,7 +53,7 @@ def test_open_file_exceed_max_size(tempdir_tool_context, sample_file):
     initial_state = TextEditorState()
 
     # Open the file once (50 lines)
-    result1 = text_editor.open_file(initial_state, sample_file, 0)
+    result1 = text_editor.open_file(initial_state, sample_file, 1)
     assert result1.action_result.success
 
     # Try to open another chunk, which would exceed the max_open_size
@@ -68,8 +68,8 @@ def test_open_file_at_boundary(tempdir_tool_context, sample_file):
     initial_state = TextEditorState()
 
     # Open exactly MAX_OPEN_SIZE lines
-    result1 = text_editor.open_file(initial_state, sample_file, 0)
-    result2 = text_editor.open_file(result1.new_state, sample_file, 50)
+    result1 = text_editor.open_file(initial_state, sample_file, 1)
+    result2 = text_editor.open_file(result1.new_state, sample_file, 51)
     assert result1.action_result.success and result2.action_result.success
     assert result2.new_state.total_lines() == 100  # MAX_OPEN_SIZE
 
@@ -80,15 +80,15 @@ def test_open_file_at_boundary(tempdir_tool_context, sample_file):
 
 
 def test_replace_file_lines_at_boundary(text_editor, sample_file, initial_state):
-    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
-    state2 = text_editor.open_file(state1, sample_file, 50).new_state
-    state3 = text_editor.open_file(state2, sample_file, 100).new_state
+    state1 = text_editor.open_file(initial_state, sample_file, 1).new_state
+    state2 = text_editor.open_file(state1, sample_file, 51).new_state
+    state3 = text_editor.open_file(state2, sample_file, 101).new_state
 
     # Replace 5 lines with 5 new lines (no net change)
     result = text_editor.replace_file_lines(
         state3,
         sample_file,
-        [{"start_line": 0, "n_lines": 5, "lines": "New Line\n" * 5}],
+        [{"start_line": 1, "n_lines": 5, "lines": "New Line\n" * 5}],
     )
     assert result.action_result.success
 
@@ -96,14 +96,14 @@ def test_replace_file_lines_at_boundary(text_editor, sample_file, initial_state)
     result = text_editor.replace_file_lines(
         state3,
         sample_file,
-        [{"start_line": 0, "n_lines": 5, "lines": "New Line\n" * 6}],
+        [{"start_line": 1, "n_lines": 5, "lines": "New Line\n" * 6}],
     )
     assert not result.action_result.success
     assert "exceeding the maximum" in result.action_result.error
 
 
 def test_replace_file_lines_middle(text_editor, sample_file, initial_state):
-    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
+    state1 = text_editor.open_file(initial_state, sample_file, 1).new_state
 
     # Replace 5 lines with 5 new lines (no net change)
     result = text_editor.replace_file_lines(
@@ -118,36 +118,36 @@ def test_replace_file_lines_middle(text_editor, sample_file, initial_state):
     assert file_info.open_file_buffers[sample_file].total_lines == 197
     assert len(file_info.open_file_buffers[sample_file].buffers) == 1
     buffer0 = file_info.open_file_buffers[sample_file].buffers[0]
-    assert buffer0.line_range.start_line == 0
+    assert buffer0.line_range.start_line == 1
     assert buffer0.line_range.n_lines == 50
 
 
 def test_close_file_range(text_editor, sample_file, initial_state):
-    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
-    result = text_editor.close_file_range(state1, sample_file, 0, 25)
+    state1 = text_editor.open_file(initial_state, sample_file, 1).new_state
+    result = text_editor.close_file_range(state1, sample_file, 1, 25)
     assert result.new_state.open_files[sample_file].total_lines() == 25
 
 
 def test_get_open_file_info(text_editor, sample_file, initial_state):
-    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
+    state1 = text_editor.open_file(initial_state, sample_file, 1).new_state
     info = state1.get_open_file_info()
     assert sample_file in info.open_file_buffers
     assert info.open_file_buffers[sample_file].total_lines == 200
     assert len(info.open_file_buffers[sample_file].buffers) == 1
-    assert info.open_file_buffers[sample_file].buffers[0].line_range.start_line == 0
+    assert info.open_file_buffers[sample_file].buffers[0].line_range.start_line == 1
     assert info.open_file_buffers[sample_file].buffers[0].line_range.n_lines == 50
 
 
 def test_open_file_multiple_ranges(text_editor, sample_file, initial_state):
-    state1 = text_editor.open_file(initial_state, sample_file, 0).new_state
-    state2 = text_editor.open_file(state1, sample_file, 50).new_state
+    state1 = text_editor.open_file(initial_state, sample_file, 1).new_state
+    state2 = text_editor.open_file(state1, sample_file, 51).new_state
     assert len(state2.open_files[sample_file].ranges) == 1
-    assert state2.open_files[sample_file].ranges[0].start_line == 0
+    assert state2.open_files[sample_file].ranges[0].start_line == 1
     assert state2.open_files[sample_file].ranges[0].n_lines == 100
 
 
 def test_open_file_beyond_end(text_editor, sample_file, initial_state):
-    result = text_editor.open_file(initial_state, sample_file, 200)
+    result = text_editor.open_file(initial_state, sample_file, 201)
     assert isinstance(result.action_result, OpenFileResult)
     assert not result.action_result.success
     assert "beyond the end of the file" in result.action_result.error
