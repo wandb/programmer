@@ -205,22 +205,10 @@ class PickBestResponse(BaseModel):
     output: SupportedAnswer
 
 
-if __name__ == "__main__":
-    # better_problem_solver = TrialsComputeFn1(
-    #     description="solve the problem",
-    #     fn=problem_solver,
-    #     score=correctness_scorer,
-    #     pick=PickBest(),
-    #     n=3,
-    # )
+int_sum_problem = "The greatest common divisor of two positive integers less than $100$ is equal to $3$. Their least common multiple is twelve times one of the integers. What is the largest possible sum of the two integers?"
 
-    # print(
-    #     better_problem_solver.run(
-    #         {
-    #             "problem": "The greatest common divisor of two positive integers less than $100$ is equal to $3$. Their least common multiple is twelve times one of the integers. What is the largest possible sum of the two integers?"
-    #         },
-    #     )
-    # )
+
+def pick_best_algs():
     pick_best = OpenAIComputeFn(
         model="gpt-4o-2024-08-06",
         temperature=0.7,
@@ -266,7 +254,67 @@ if __name__ == "__main__":
     print(
         better_picker_problem_solver.run(
             {
-                "problem": "The greatest common divisor of two positive integers less than $100$ is equal to $3$. Their least common multiple is twelve times one of the integers. What is the largest possible sum of the two integers?"
-            },
+                "problem": int_sum_problem,
+            }
         )
     )
+
+
+def decompose():
+
+    class ProblemDecomposition(BaseModel):
+        subproblems: list[str]
+
+    class ProblemSolverResponse(BaseModel):
+        reasoning: str
+        output: ProblemDecomposition
+
+    problem_decomposer = OpenAIComputeFn(
+        model="gpt-4o-2024-08-06",
+        temperature=0.7,
+        description="decompose the problem into subproblems",
+        prompt=Prompt(
+            messages=[
+                {
+                    "role": "user",
+                    "content": "decompose the following problem into subproblems. Do not solve the problem. <problem>{problem}</problem>",
+                }
+            ]
+        ),
+        response_format=ProblemSolverResponse,
+    )
+
+    class PlannerOutput(BaseModel):
+        subfunction_declarations: list[str]
+        algorithm_steps: list[str]
+
+    class PlannerResponse(BaseModel):
+        reasoning: str
+        output: PlannerOutput
+
+    planner = OpenAIComputeFn(
+        model="gpt-4o-2024-08-06",
+        temperature=0.7,
+        description="write an algorithm for how to solve the problem",
+        prompt=Prompt(
+            messages=[
+                {
+                    "role": "user",
+                    "content": "write an algorithm for how to solve the problem, in pseudocode. Do not solve the problem. <problem>{problem}</problem>",
+                }
+            ]
+        ),
+        response_format=PlannerResponse,
+    )
+
+    print(
+        planner.run(
+            {
+                "problem": int_sum_problem,
+            }
+        )
+    )
+
+
+if __name__ == "__main__":
+    decompose()
