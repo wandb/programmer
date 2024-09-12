@@ -2,7 +2,7 @@
 
 programmer is a command-line based AI programmer, that will help you get stuff done.
 
-programmer has direct access to your machine, it can run commands, and read and write files, without safety checks. You have been warned!
+**WARNING**: programmer has direct access to your machine, it can run commands, and read and write files, without safety checks. You have been warned!
 
 ![Demo](./assets/programmer-demo-1080.gif)
 
@@ -12,6 +12,20 @@ programmer has direct access to your machine, it can run commands, and read and 
 pip install programmer
 programmer 
 ```
+
+## Switching to o1-based agents
+
+Programmer works with OpenAI's just released [o1 models](https://openai.com/index/introducing-openai-o1-preview/).
+
+**GIANT WARNING**: Remember, programmer directly runs agent commands on your machine, without prompting you first. The o1 models are brand new and should not be trusted to do this! You have been **GIANT WARNING** warned.
+
+```
+programmer settings set agent o1-preview-2024-09-12_o1harness
+# OR
+programmer settings set agent o1-mini-2024-09-12_o1harness
+```
+
+The o1 agents currently don't work very well, and might do dangerous things. But they do work!
 
 ## Examples
 

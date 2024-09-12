@@ -336,11 +336,13 @@ if __name__ == "__main__":
         # agent_claude_splice,
         # agent_texteditor_4o_basic,
         # agent_texteditor_4o_basic_temp0,
-        agent_texteditor_4o_basic_noparalleltc,
+        # agent_texteditor_4o_basic_noparalleltc,
+        # agent_texteditor_o1_o1preview,
+        agent_texteditor_o1_o1mini,
     ]
 
-    config = EvalEditMemoryConfig(n_lines=1000, run_timeout_seconds=60)
-    n_trials = 10
+    config = EvalEditMemoryConfig(n_lines=100, run_timeout_seconds=600)
+    n_trials = 1
     config_s = f'{config["n_lines"]}lines_{config["run_timeout_seconds"]}timeout'
     results = {}
     for agent in agents:

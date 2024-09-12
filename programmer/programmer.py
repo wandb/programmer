@@ -11,10 +11,13 @@ from typing import Any, Optional
 import weave
 
 from .agent import Agent, AgentState, get_commit_message
-from .console import Console
+from .console import Console, console
 from .config import (
-    agent_4o_replace,
-    agent_texteditor_4o_basic,
+    # agent_4o_replace,
+    # agent_texteditor_4o_basic,
+    # agent_texteditor_o1_gpt4o,
+    # agent_texteditor_o1_o1preview,
+    get_config_by_name,
 )
 from .environment import (
     environment_session,
@@ -27,8 +30,6 @@ from .weave_next.api import init_local_client
 from .settings_manager import SettingsManager
 
 from .git import GitRepo
-
-agent = agent_texteditor_4o_basic
 
 
 @weave.op
@@ -51,6 +52,26 @@ def user_input_step(state: AgentState) -> AgentState:
         }
     ]
     return state.with_history(history)
+
+
+def settings_command(command_args):
+    if len(command_args) < 2:
+        console.print("[red]Invalid settings command[/red]")
+        return
+    action = command_args[0]
+    key = command_args[1]
+    if action == "get":
+        value = SettingsManager.get_setting(key)
+        if value is not None:
+            console.print(f"{key} = {value}")
+        else:
+            console.print(f"[red]Setting '{key}' not found[/red]")
+    elif action == "set" and len(command_args) == 3:
+        value = command_args[2]
+        SettingsManager.set_setting(key, value)
+        console.print(f"[green]Setting '{key}' updated to '{value}'[/green]")
+    else:
+        console.print("[red]Invalid settings command[/red]")
 
 
 def make_environment():
@@ -119,7 +140,7 @@ def programmer():
     args = parser.parse_args()
 
     if args.command == "settings":
-        Console.settings_command(
+        settings_command(
             [args.action, args.key, args.value]
             if args.value
             else [args.action, args.key]
@@ -137,12 +158,23 @@ def programmer():
 
     # log to local sqlite db for now
 
-    Console.welcome()
-
     if args.state:
         state = weave.ref(args.state).get()
         if state.env_snapshot_key:
             environment = restore_environment(state.env_snapshot_key)
+
+    agent_name = SettingsManager.get_setting("agent")
+    if not agent_name:
+        raise ValueError(
+            "No agent name set. Please set the agent name in the settings."
+        )
+    agent = get_config_by_name(agent_name)
+    if not agent:
+        raise ValueError(
+            f"Agent {agent_name} not found. Please set a valid agent name in the settings."
+        )
+
+    Console.welcome(agent_name=agent.name)
 
     if args.command == "prompt":
         initial_prompt = " ".join(args.prompt_args)
@@ -159,7 +191,7 @@ def programmer():
         ]
     )
 
-    session(agent_texteditor_4o_basic, state)
+    session(agent, state)
 
 
 def main():

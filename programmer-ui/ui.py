@@ -429,8 +429,10 @@ def playground_page():
     if st.button("Generate"):
         chat_inputs = {**editable_call["inputs"]}
         # st.json(chat_inputs, expanded=False)
-        del chat_inputs["stream"]
-        del chat_inputs["self"]
+        if "stream" in chat_inputs:
+            del chat_inputs["stream"]
+        if "self" in chat_inputs:
+            del chat_inputs["self"]
         chat_inputs["n"] = n_choices
         call_resp = openai.chat.completions.create(**chat_inputs).model_dump()
 
