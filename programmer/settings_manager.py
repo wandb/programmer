@@ -1,4 +1,5 @@
 import os
+from .config import get_all_config_names
 
 
 class SettingsError(Exception):
@@ -8,8 +9,13 @@ class SettingsError(Exception):
 class SettingsManager:
     PROGRAMMER_DIR = ".programmer"
     SETTINGS_FILE = "settings"
-    DEFAULT_SETTINGS = {"weave_logging": "local", "git_tracking": "off"}
+    DEFAULT_SETTINGS = {
+        "agent": "gpt-4o-2024-08-06_basic",
+        "weave_logging": "local",
+        "git_tracking": "off",
+    }
     ALLOWED_VALUES = {
+        "agent": get_all_config_names(),
         "weave_logging": ["off", "local", "cloud"],
         "git_tracking": ["off", "on"],
     }

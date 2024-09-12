@@ -17,6 +17,8 @@ from .tools import (
 from .agent import Agent
 from .agent_texteditor import AgentTextEditor
 from .text_editor import TextEditor
+from .agent_texteditor_o1 import AgentTextEditorO1
+from typing import Optional, Any
 
 agent_4o_basic = Agent(
     name="gpt-4o-2024-08-06_basic",
@@ -127,3 +129,70 @@ agent_texteditor_4o_basic_noparalleltc = AgentTextEditor(
     tools=[list_files, run_command, view_image],
     parallel_tool_calls=False,
 )
+
+agent_texteditor_o1_gpt4o = AgentTextEditorO1(
+    name="gpt4o_o1harness",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)
+
+agent_texteditor_o1_o1preview = AgentTextEditorO1(
+    name="o1-preview-2024-09-12_o1harness",
+    model_name="o1-preview-2024-09-12",
+    temperature=1,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)
+
+agent_texteditor_o1_o1mini = AgentTextEditorO1(
+    name="o1-mini-2024-09-12_o1harness",
+    model_name="o1-mini-2024-09-12",
+    temperature=1,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)
+
+
+def get_config_by_name(name: str) -> Optional[Any]:
+    """
+    Fetch a configuration object by its name.
+
+    Args:
+        name (str): The name of the configuration to fetch.
+
+    Returns:
+        Optional[Any]: The configuration object if found, None otherwise.
+    """
+    # Get all variables defined in this module
+    all_vars = globals()
+
+    # Look for a variable that matches the given name
+    for var_name, var_value in all_vars.items():
+        if isinstance(var_value, Agent):
+            if var_value.name == name:
+                return var_value
+
+    # If no matching configuration is found, return None
+    return None
+
+
+def get_all_config_names() -> list[str]:
+    """
+    Get a list of all valid configuration names.
+
+    Returns:
+        list[str]: A list of all configuration names.
+    """
+    all_vars = globals()
+    config_names = []
+
+    for var_name, var_value in all_vars.items():
+        if isinstance(var_value, (Agent, AgentTextEditor, AgentTextEditorO1)):
+            config_names.append(var_value.name)
+
+    return sorted(config_names)
