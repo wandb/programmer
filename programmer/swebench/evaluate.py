@@ -7,7 +7,7 @@ import weave
 from .swebench_model import SWEBenchProgrammerModel
 from .score import score_swebench
 from ..agent import Agent
-from ..config import agent_4o_basic
+from ..config import agent_4o_basic, agent_texteditor_4o_basic_noparalleltc
 
 
 def load_raw_dataset(name: str, split: str):
@@ -59,7 +59,7 @@ def main():
     )
 
     model = SWEBenchProgrammerModel(
-        agent=agent_4o_basic,
+        agent=agent_texteditor_4o_basic_noparalleltc,
         max_runtime_seconds=180,
     )
     res = asyncio.run(eval.evaluate(model))

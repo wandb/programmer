@@ -16,7 +16,7 @@ class SWEBenchProgrammerModel(weave.Model):
 <problem_statement>
 {problem_statement}
 </problem_statement>"""
-        state = AgentState(
+        state = self.agent.initial_state(
             history=[
                 {
                     "role": "user",
