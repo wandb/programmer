@@ -167,7 +167,7 @@ def expand_refs(wc: WeaveClient, refs: Sequence[str]):
     return Objs(wc, refs)
 
 
-def call(wc: WeaveClient, call_id: str):
+def get_call(wc: WeaveClient, call_id: str):
     """Return a raw Weave call."""
     response = wc.server.calls_query(
         CallsQueryReq(

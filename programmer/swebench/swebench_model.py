@@ -1,7 +1,7 @@
 import weave
 
 from ..agent import Agent, AgentState
-from ..tools import RemoteContainerToolContext
+from ..io_context import RemoteContainerIOContext
 
 
 class SWEBenchProgrammerModel(weave.Model):
@@ -25,7 +25,7 @@ class SWEBenchProgrammerModel(weave.Model):
             ],
         )
 
-        tc = RemoteContainerToolContext(
+        tc = RemoteContainerIOContext(
             "http://localhost:8000",
             "/testbed",
             "source /opt/miniconda3/bin/activate && conda activate testbed && ",

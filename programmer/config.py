@@ -15,6 +15,8 @@ from .tools import (
     splice_lines_in_file,
 )
 from .agent import Agent
+from .agent_texteditor import AgentTextEditor
+from .text_editor import TextEditor
 
 agent_4o_basic = Agent(
     name="gpt-4o-2024-08-06_basic",
@@ -95,4 +97,33 @@ agent_claude_splice = Agent(
         read_lines_from_file,
         splice_lines_in_file,
     ],
+)
+
+text_editor = TextEditor(max_open_size=15000, open_chunk_size=2000)
+agent_texteditor_4o_basic = AgentTextEditor(
+    name="gpt-4o-2024-08-06_texteditor_basic",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)
+
+agent_texteditor_4o_basic_temp0 = AgentTextEditor(
+    name="gpt-4o-2024-08-06_texteditor_basic_temp0",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.0,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+)
+
+agent_texteditor_4o_basic_noparalleltc = AgentTextEditor(
+    name="gpt-4o-2024-08-06_texteditor_basic_noparalleltc",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+    parallel_tool_calls=False,
 )

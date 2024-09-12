@@ -1,7 +1,6 @@
-from typing import Any, Optional, Union
+from typing import Any, Union
 from pydantic import Field
 import litellm
-import time
 from openai.types.chat import (
     ChatCompletionMessageParam,
 )
@@ -12,15 +11,16 @@ from weave.flow.chat_util import OpenAIStream
 
 from .console import Console
 from .tool_calling import chat_call_tool_params, perform_tool_calls
-from .environment import get_current_environment, EnvironmentSnapshotKey
-
-
-def get_commit_message(history: list[Any]) -> str:
-    # Commit message is the most recent message with 'content'
-    for i in range(len(history) - 1, -1, -1):
-        if history[i].get("role") != "tool" and "content" in history[i]:
-            return f'{history[i]["role"]}: {history[i]["content"]}'
-    return "commit"
+from .text_editor import (
+    TextEditor,
+    TextEditorState,
+    TextEditorStateful,
+    open_file,
+    close_file_range,
+    replace_file_lines,
+    text_editor,
+)
+from .agent import AgentState, Agent
 
 
 # Weave bug workaround: adding two WeaveLists can create that cause
@@ -34,16 +34,25 @@ def weavelist_add(self: Union[list, WeaveList], other: list) -> Union[list, Weav
     return WeaveList(list(self) + other, server=self.server)
 
 
-class AgentState(weave.Object):
-    # The chat message history.
-    history: list[Any] = Field(default_factory=list)
-    env_snapshot_key: Optional[EnvironmentSnapshotKey] = None
+class AgentStateTextEditor(AgentState):
+    text_editor_state: TextEditorState = Field(default_factory=TextEditorState)
 
-    def with_history(self, history: list[Any]) -> "AgentState":
-        environment = get_current_environment()
-        msg = get_commit_message(history)
-        snapshot_key = environment.make_snapshot(msg)
-        return self.__class__(history=history, env_snapshot_key=snapshot_key)
+    def with_history(self, history: list[Any]) -> "AgentStateTextEditor":
+        next_state = super().with_history(history)
+        return AgentStateTextEditor(
+            history=next_state.history,
+            env_snapshot_key=next_state.env_snapshot_key,
+            text_editor_state=self.text_editor_state,
+        )
+
+    def with_texteditor_state(
+        self, text_editor_state: TextEditorState
+    ) -> "AgentStateTextEditor":
+        return AgentStateTextEditor(
+            history=self.history,
+            env_snapshot_key=self.env_snapshot_key,
+            text_editor_state=text_editor_state,
+        )
 
 
 def unweavify(v: Any) -> Any:
@@ -55,17 +64,15 @@ def unweavify(v: Any) -> Any:
         return v
 
 
-class Agent(weave.Object):
-    model_name: str
-    temperature: float
-    system_message: str
-    tools: list[Any] = Field(default_factory=list)
+class AgentTextEditor(Agent):
+    parallel_tool_calls: bool = True
+    text_editor: TextEditor
 
-    def initial_state(self, history: list[Any]) -> AgentState:
-        return AgentState().with_history(history)
+    def initial_state(self, history: list[Any]) -> AgentStateTextEditor:
+        return AgentStateTextEditor(history=history)
 
     @weave.op()
-    def step(self, state: AgentState) -> AgentState:
+    def step(self, state: AgentStateTextEditor) -> AgentStateTextEditor:
         """Run a step of the agent.
 
         Args:
@@ -84,12 +91,37 @@ class Agent(weave.Object):
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.system_message},
         ]
+        open_file_info = state.text_editor_state.get_open_file_info()
+
+        messages.append(
+            {
+                "role": "system",
+                "content": open_file_info.format_for_messages(),
+            }
+        )
+
         messages += state.history
+
+        messages.append(
+            {
+                "role": "system",
+                "content": open_file_info.format_for_messages(),
+            }
+        )
+
+        self_tools = [*self.tools] or []
+
+        text_editor_stateful = TextEditorStateful(
+            self.text_editor, state.text_editor_state
+        )
+
+        # self_tools += [open_file, close_file_range, replace_file_lines]
+        self_tools += [open_file, replace_file_lines]
 
         # make type checkers happy by passing NotGiven instead of None
         tools = None
-        if self.tools:
-            tools = chat_call_tool_params(self.tools)
+        if self_tools:
+            tools = chat_call_tool_params(self_tools)
 
         Console.chat_response_start()
 
@@ -105,6 +137,7 @@ class Agent(weave.Object):
             tools=tools,
             stream=True,
             timeout=60,
+            parallel_tool_calls=self.parallel_tool_calls,
         )
         wrapped_stream = OpenAIStream(stream)  # type: ignore
         for chunk in wrapped_stream:
@@ -121,25 +154,12 @@ class Agent(weave.Object):
         # instead of mixing in some pydantic objects.
         new_messages.append(response_message.model_dump(exclude_none=True))
         if response_message.tool_calls:
-            new_messages.extend(
-                perform_tool_calls(self.tools, response_message.tool_calls)
-            )
-
-        # new_history = state.history + new_messages
+            with text_editor(text_editor_stateful):
+                new_messages.extend(
+                    perform_tool_calls(self_tools, response_message.tool_calls)
+                )
         new_history = weavelist_add(state.history, new_messages)
 
-        return state.with_history(new_history)
-
-    @weave.op()
-    def run(self, state: AgentState, max_runtime_seconds: int = -1):
-        start_time = time.time()
-        while True:
-            last_message = state.history[-1]
-            if last_message["role"] == "assistant" and "tool_calls" not in last_message:
-                return {"state": state, "stop_reason": "done"}
-            state = self.step(state)
-            if (
-                max_runtime_seconds > 0
-                and time.time() - start_time > max_runtime_seconds
-            ):
-                return {"state": state, "stop_reason": "time_limit_exceeded"}
+        next_state = state.with_history(new_history)
+        next_state = next_state.with_texteditor_state(text_editor_stateful.state)
+        return next_state

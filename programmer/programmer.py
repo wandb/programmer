@@ -14,6 +14,7 @@ from .agent import Agent, AgentState, get_commit_message
 from .console import Console
 from .config import (
     agent_4o_replace,
+    agent_texteditor_4o_basic,
 )
 from .environment import (
     environment_session,
@@ -26,6 +27,8 @@ from .weave_next.api import init_local_client
 from .settings_manager import SettingsManager
 
 from .git import GitRepo
+
+agent = agent_texteditor_4o_basic
 
 
 @weave.op
@@ -41,18 +44,13 @@ def user_input_step(state: AgentState) -> AgentState:
     # if ref:
     #     print("state ref:", ref.uri())
     user_input = get_user_input()
-    environment = get_current_environment()
     history = state.history + [
         {
             "role": "user",
             "content": user_input,
         }
     ]
-    msg = get_commit_message(history)
-    return AgentState(
-        history=history,
-        env_snapshot_key=environment.make_snapshot(msg),
-    )
+    return state.with_history(history)
 
 
 def make_environment():
@@ -74,12 +72,9 @@ def session(agent: Agent, agent_state: AgentState):
         session_id = call.id
 
     env = make_environment()
-    msg = get_commit_message(agent_state.history)
 
     with environment_session(env, session_id):
-        agent_state = AgentState(
-            history=agent_state.history, env_snapshot_key=env.make_snapshot(msg)
-        )
+        agent_state = agent_state.with_history(agent_state.history)
         while True:
             result = agent.run(agent_state)
             agent_state = result["state"]
@@ -155,16 +150,16 @@ def programmer():
     else:
         initial_prompt = input("Initial prompt: ")
 
-    state = AgentState(
-        history=[
+    state = agent.initial_state(
+        [
             {
                 "role": "user",
                 "content": initial_prompt,
             },
-        ],
+        ]
     )
 
-    session(agent_4o_replace, state)
+    session(agent_texteditor_4o_basic, state)
 
 
 def main():
