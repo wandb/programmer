@@ -25,6 +25,8 @@ programmer settings set agent o1-preview-2024-09-12_o1harness
 programmer settings set agent o1-mini-2024-09-12_o1harness
 ```
 
+The o1 agents currently don't work very well, and might do dangerous things. But they do work!
+
 ## Examples
 
 - "What processes are listening on port 4512?" ... "ok, please kill them"
