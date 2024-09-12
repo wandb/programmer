@@ -54,8 +54,6 @@ def init_from_settings() -> WeaveClient:
         raise ValueError(f"Invalid weave_logging setting: {weave_logging_setting}")
 
 
-client: WeaveClient = None
-
 # Add sidebar for Weave project configuration
 with st.sidebar:
     st.header("Weave Project Configuration")
@@ -82,10 +80,6 @@ with st.sidebar:
 
     if project_type == "local":
         project_path = st.text_input("Local DB Path", value=initial_project_path)
-    else:
-        project_name = st.text_input("Cloud Project Name", value=initial_project_name)
-
-    if project_type == "local":
         # SettingsManager.set_setting("weave_logging", "local")
         # SettingsManager.set_setting("weave_db_path", project_path)
         client = init_local_weave(project_path)
@@ -93,6 +87,7 @@ with st.sidebar:
     else:
         # SettingsManager.set_setting("weave_logging", "cloud")
         # SettingsManager.set_setting("weave_project_name", project_name)
+        project_name = st.text_input("Cloud Project Name", value=initial_project_name)
         client = init_remote_weave(project_name)
         print("C3", client._project_id())
 
@@ -133,7 +128,7 @@ def cached_get_call(wc: WeaveClient, call_id: str):
 
 
 @st.cache_data(hash_funcs=ST_HASH_FUNCS)
-def cached_expand_json_refs(wc: WeaveClient, json: dict) -> dict:
+def cached_expand_json_refs(wc: WeaveClient, json: dict):
     return expand_json_refs(wc, json)
 
 
@@ -438,7 +433,8 @@ def playground_page():
         del chat_inputs["self"]
         chat_inputs["n"] = n_choices
         call_resp = openai.chat.completions.create(**chat_inputs).model_dump()
-        st.session_state.playground_state["editable_call"]["output"] = call_resp
+
+        editable_call["output"] = call_resp
         st.rerun()
         # st.json(response, expanded=False)
         # output = response["choices"][0]["message"]

@@ -10,12 +10,12 @@ from swebench.harness.constants import (
     SWEbenchInstance,
 )
 
-from ..tools import RemoteContainerToolContext
+from ..io_context import RemoteContainerIOContext
 
 
 def score_swebench(instance: SWEbenchInstance, model_output):
     patch = model_output["answer"]
-    tc = RemoteContainerToolContext(
+    tc = RemoteContainerIOContext(
         "http://localhost:8000",
         "/testbed",
         "source /opt/miniconda3/bin/activate && conda activate testbed && ",
