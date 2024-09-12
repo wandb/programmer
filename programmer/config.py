@@ -99,7 +99,7 @@ agent_claude_splice = Agent(
     ],
 )
 
-text_editor = TextEditor(max_open_size=15000, open_chunk_size=500)
+text_editor = TextEditor(max_open_size=15000, open_chunk_size=2000)
 agent_texteditor_4o_basic = AgentTextEditor(
     name="gpt-4o-2024-08-06_texteditor_basic",
     model_name="gpt-4o-2024-08-06",
@@ -116,4 +116,14 @@ agent_texteditor_4o_basic_temp0 = AgentTextEditor(
     system_message=SYSTEM_MESSAGE,
     text_editor=text_editor,
     tools=[list_files, run_command, view_image],
+)
+
+agent_texteditor_4o_basic_noparalleltc = AgentTextEditor(
+    name="gpt-4o-2024-08-06_texteditor_basic_noparalleltc",
+    model_name="gpt-4o-2024-08-06",
+    temperature=0.7,
+    system_message=SYSTEM_MESSAGE,
+    text_editor=text_editor,
+    tools=[list_files, run_command, view_image],
+    parallel_tool_calls=False,
 )

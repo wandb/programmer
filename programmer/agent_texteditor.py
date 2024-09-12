@@ -65,6 +65,7 @@ def unweavify(v: Any) -> Any:
 
 
 class AgentTextEditor(Agent):
+    parallel_tool_calls: bool = True
     text_editor: TextEditor
 
     def initial_state(self, history: list[Any]) -> AgentStateTextEditor:
@@ -136,6 +137,7 @@ class AgentTextEditor(Agent):
             tools=tools,
             stream=True,
             timeout=60,
+            parallel_tool_calls=self.parallel_tool_calls,
         )
         wrapped_stream = OpenAIStream(stream)  # type: ignore
         for chunk in wrapped_stream:

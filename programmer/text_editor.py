@@ -163,7 +163,7 @@ class OpenFileInfoResult:
         ]
         for path, open_file_info in self.open_file_buffers.items():
             lines.append(f"<file {path}>")
-            lines.append(f"<file_info total_lines={open_file_info.total_lines} />")
+            # lines.append(f"<file_info total_lines={open_file_info.total_lines} />")
             for buffer in open_file_info.buffers:
                 lines.append("<buffer>")
                 for i, line in enumerate(buffer.lines):
@@ -471,20 +471,36 @@ def close_file_range(path: str, start_line: int, n_lines: int) -> str:
     return "success"
 
 
+class LineRangeReplacementStartEnd(TypedDict):
+    start_line: int
+    remove_up_to_line: int
+    lines: str
+
+
 @weave.op
-def replace_file_lines(path: str, replacements: list[LineRangeReplacement]) -> str:
-    """Replace ranges of lines within a file. Changes must be made to open ranges, and will be reflected immediately on the filesystem.
+def replace_file_lines(
+    path: str, replacements: list[LineRangeReplacementStartEnd]
+) -> str:
+    """Replace ranges of lines within a file. Changes must be made to open ranges, and will be reflected immediately on the filesystem. First, existing lines are removed starting at start line, up to but not including replace_up_to_line. Then the new lines are added in that position.
 
     Args:
         path: The path to the file.
-        replacements: A list of replacements to make. Each replacement is a dictionary with keys: start_line (1-indexed), n_lines (the number of lines to remove), lines (a string of newline separated lines)
+        replacements: A list of replacements to make. Each replacement is a dictionary with keys: start_line (1-indexed, inclusive), remove_up_to_line (1-indexed, exclusive), lines (a string of newline separated lines to insert)
 
     Returns:
         "success" if the file was replaced successfully,
         "error: <error message>" if the file was not replaced successfully.
     """
     text_editor = require_text_editor()
-    response = text_editor.replace_file_lines(path, replacements)
+    replacements_list = [
+        LineRangeReplacement(
+            start_line=r["start_line"],
+            n_lines=r["remove_up_to_line"] - r["start_line"],
+            lines=r["lines"],
+        )
+        for r in replacements
+    ]
+    response = text_editor.replace_file_lines(path, replacements_list)
     if response.success:
         return "success"
     else:

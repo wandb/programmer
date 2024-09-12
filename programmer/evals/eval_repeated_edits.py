@@ -266,7 +266,7 @@ def mismatch_details(lines, file_lines):
     error_details.append("Incorrect edit")
     error_details.append("file.txt\texpected")
     error_details.append(f"len={len(file_lines)}\tlen={len(lines)}")
-    for i in range(len(lines)):
+    for i in range(len(max(lines, file_lines))):
         try:
             file_lines_i = file_lines[i]
         except IndexError:
@@ -334,12 +334,13 @@ if __name__ == "__main__":
         # agent_claude_replace,
         # agent_4o_splice,
         # agent_claude_splice,
-        agent_texteditor_4o_basic,
-        agent_texteditor_4o_basic_temp0,
+        # agent_texteditor_4o_basic,
+        # agent_texteditor_4o_basic_temp0,
+        agent_texteditor_4o_basic_noparalleltc,
     ]
 
-    config = EvalEditMemoryConfig(n_lines=100, run_timeout_seconds=60)
-    n_trials = 50
+    config = EvalEditMemoryConfig(n_lines=1000, run_timeout_seconds=60)
+    n_trials = 10
     config_s = f'{config["n_lines"]}lines_{config["run_timeout_seconds"]}timeout'
     results = {}
     for agent in agents:
