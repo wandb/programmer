@@ -17,13 +17,14 @@ def load_raw_dataset(name: str, split: str):
 
 
 def load_weave_dataset(
-    name: str,
+    swebench_dsname: str,
     split: str,
     limit: Optional[int] = None,
     instance_ids: Optional[list[str]] = None,
     shuffle_seed: Optional[int] = None,
+    weave_ds_name: Optional[str] = None,
 ):
-    df = load_raw_dataset(name, split)
+    df = load_raw_dataset(swebench_dsname, split)
 
     data_list = df.to_dict("records")
     if shuffle_seed is not None:
@@ -35,11 +36,13 @@ def load_weave_dataset(
     data_list = data_list[:limit] if limit else data_list
     data_list = [{"instance": r} for r in data_list]
 
-    return weave.Dataset(name=f"Verified-{limit}-{shuffle_seed}", rows=data_list)  # type: ignore
+    if weave_ds_name is None:
+        weave_ds_name = f"Verified-{limit}-{shuffle_seed}"
+
+    return weave.Dataset(name=weave_ds_name, rows=data_list)  # type: ignore
 
 
-def main():
-    weave.init("weavedev-programmereval1")
+def swebench_easy10_dataset():
     instance_ids = [
         "django__django-16569",
         "django__django-11099",
@@ -52,10 +55,21 @@ def main():
         "sympy__sympy-24213",
         "django__django-11066",
     ]
+    return load_weave_dataset(
+        "SWE-bench_Verified",
+        "test",
+        instance_ids=instance_ids,
+        weave_ds_name="Verified-easy10",
+    )
+
+
+def main():
+    weave.init("weavedev-programmereval1")
     # ds = load_weave_dataset("SWE-bench_Verified", "test", instance_ids=instance_ids)
-    ds = load_weave_dataset("SWE-bench_Verified", "test", limit=50, shuffle_seed=42)
+    # ds = load_weave_dataset("SWE-bench_Verified", "test", limit=50, shuffle_seed=42)
+    ds = swebench_easy10_dataset()
     eval = weave.Evaluation(
-        name="SWE-bench_Verified", dataset=ds, scorers=[score_swebench], trials=1
+        name="SWE-bench_Verified", dataset=ds, scorers=[score_swebench], trials=3
     )
 
     model = SWEBenchProgrammerModel(

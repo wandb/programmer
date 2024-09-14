@@ -10,6 +10,8 @@ from swebench.harness.constants import (
     SWEbenchInstance,
 )
 
+import weave
+
 from ..io_context import RemoteContainerIOContext
 
 
@@ -30,6 +32,11 @@ def score_swebench(instance: SWEbenchInstance, model_output):
 
         tc.write_file("/tmp/patch.diff", patch)
         patch_result = tc.run_command("git apply -v /tmp/patch.diff")
+        if patch_result["exit_code"] != 0:
+            print("git apply failed, trying patch")
+            patch_result = tc.run_command(
+                "patch --batch --fuzz=5 -p1 -i /tmp/patch.diff"
+            )
         if patch_result["exit_code"] == 0:
             result["patch_successfully_applied"] = True
         print("PATCH RESULT\n", patch_result)
@@ -37,6 +44,8 @@ def score_swebench(instance: SWEbenchInstance, model_output):
         tc.write_file("/eval.sh", ts.eval_script)
         test_command_results = tc.run_command("chmod +x /eval.sh && /eval.sh")
         tc_output = test_command_results["output"]
+
+    print("TC OUTPUT\n", tc_output)
 
     repo = "-".join(
         ts.instance_id.replace("__", "/").split("-")[:-1]
@@ -56,3 +65,17 @@ def score_swebench(instance: SWEbenchInstance, model_output):
     result.update({"resolved": resolved, "tests_status": report})
 
     return result
+
+
+if __name__ == "__main__":
+    import sys
+    from .evaluate import load_raw_dataset
+
+    client = weave.init("weavedev-programmereval1")
+    call = client.get_call(sys.argv[1])
+    instance_id = call.inputs["example"]["instance"]["instance_id"]
+    model_output = call.output["model_output"]
+    ds = load_raw_dataset("SWE-bench_Verified", "test")
+    instance = ds[ds["instance_id"] == instance_id].iloc[0]
+    score = score_swebench(instance, model_output)
+    print(score)

@@ -14,57 +14,60 @@ from weave.trace_server.trace_server_interface import (
 def _construct_calls_filter(
     project_id: str,
     op_names: Optional[Union[str, Sequence[str]]] = None,
+    call_ids: Optional[Union[str, Sequence[str]]] = None,
     parent_ids: Optional[Union[str, Sequence[str]]] = None,
+    trace_ids: Optional[Union[str, Sequence[str]]] = None,
 ):
-    if op_names is None:
-        op_names = []
-    elif isinstance(op_names, str):
+    if isinstance(op_names, str):
         op_names = [op_names]
-    op_ref_uris = []
-    for op_name in op_names:
-        if op_name.startswith("weave:///"):
-            op_ref_uris.append(op_name)
-        else:
-            if ":" not in op_name:
-                op_name = op_name + ":*"
-            op_ref_uris.append(f"weave:///{project_id}/op/{op_name}")
+    op_ref_uris = None
+    if op_names:
+        op_ref_uris = []
+        for op_name in op_names:
+            if op_name.startswith("weave:///"):
+                op_ref_uris.append(op_name)
+            else:
+                if ":" not in op_name:
+                    op_name = op_name + ":*"
+                op_ref_uris.append(f"weave:///{project_id}/op/{op_name}")
 
-    if parent_ids is None:
-        parent_ids = []
-    elif isinstance(parent_ids, str):
+    if isinstance(call_ids, str):
+        call_ids = [call_ids]
+
+    if isinstance(parent_ids, str):
         parent_ids = [parent_ids]
 
-    return CallsFilter(op_names=op_ref_uris, parent_ids=parent_ids)  # type: ignore
+    if isinstance(trace_ids, str):
+        trace_ids = [trace_ids]
+
+    return CallsFilter(
+        op_names=op_ref_uris,
+        parent_ids=parent_ids,  # type: ignore
+        trace_ids=trace_ids,  # type: ignore
+        call_ids=call_ids,  # type: ignore
+    )
 
 
 def _server_call_pages(
     wc: WeaveClient,
     filt: CallsFilter,
-    limit: Optional[int] = None,
 ):
-    page_index = 0
     page_size = 1000
-    remaining = limit
-    while True:
-        response = wc.server.calls_query(
-            CallsQueryReq(
-                project_id=wc._project_id(),
-                filter=filt,
-                offset=page_index * page_size,
-                limit=page_size,
-            )
+    response = wc.server.calls_query_stream(
+        CallsQueryReq(
+            project_id=wc._project_id(),
+            filter=filt,
         )
-        page_data = []
-        for v in response.calls:
-            v = v.model_dump()
-            page_data.append(v)
-        if remaining is not None:
-            page_data = page_data[:remaining]
-            remaining -= len(page_data)
+    )
+    page_data = []
+    for v in response:
+        v = v.model_dump()
+        page_data.append(v)
+        if len(page_data) == page_size:
+            yield page_data
+            page_data = []
+    if page_data:
         yield page_data
-        if len(page_data) < page_size:
-            break
-        page_index += 1
 
 
 def _server_refs(self, refs: Sequence[Union[str, Any]]):
@@ -107,7 +110,7 @@ def _expand_refs_in_page(wc: WeaveClient, page: list[dict], expand_refs: list[st
         ref_values = [call.get(ref) for call in flat_page]
         expanded_refs = _server_refs(wc, ref_values)
         for call, expanded_ref in zip(flat_page, expanded_refs):
-            orig_val = call[ref]
+            orig_val = call.get(ref)
             call[ref] = expanded_ref
             if (
                 isinstance(orig_val, str)
@@ -139,16 +142,47 @@ class Calls:
         return pd.json_normalize(vals)
 
 
+class Traces:
+    def __init__(self, calls_df: pd.DataFrame):
+        self._calls_df = calls_df
+
+    def to_pandas(self):
+        return self._calls_df
+
+
 def calls(
     wc: WeaveClient,
     op_names: Optional[Union[str, Sequence[str]]] = None,
+    call_ids: Optional[Union[str, Sequence[str]]] = None,
+    trace_ids: Optional[Union[str, Sequence[str]]] = None,
     parent_ids: Optional[Union[str, Sequence[str]]] = None,
     limit: Optional[int] = None,
     expand_refs: Optional[list[str]] = None,
 ):
-    return Calls(
-        wc, _construct_calls_filter(wc._project_id(), op_names, parent_ids), expand_refs
+    _filter = _construct_calls_filter(
+        wc._project_id(),
+        op_names=op_names,
+        call_ids=call_ids,
+        parent_ids=parent_ids,
+        trace_ids=trace_ids,
     )
+    return Calls(wc, _filter, expand_refs=expand_refs)
+
+
+def traces(
+    wc: WeaveClient,
+    call_ids: Optional[Union[str, Sequence[str]]] = None,
+    expand_refs: Optional[list[str]] = None,
+):
+    cs = calls(wc, call_ids=call_ids, expand_refs=expand_refs)
+    cs_df = cs.to_pandas()
+    if len(cs_df) == 0:
+        empty_df = pd.DataFrame()
+        return Traces(empty_df)
+    trace_ids = cs_df["trace_id"]
+    trace_calls = calls(wc, trace_ids=trace_ids, expand_refs=expand_refs)
+    res = Traces(trace_calls.to_pandas())
+    return res
 
 
 class Objs:

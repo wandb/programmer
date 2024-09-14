@@ -16,6 +16,9 @@ def print_step_call(call):
     if isinstance(end_history, float):
         st.write("STEP WITH NO OUTPUT")
         return
+    if end_history is None:
+        st.write("STEP WITH NO OUTPUT. TODO: Show LLM call here.")
+        return
     step_messages = list(end_history)[len(start_history) :]
     assistant_message = step_messages[0]
     tool_response_messages = step_messages[1:]
@@ -24,11 +27,21 @@ def print_step_call(call):
         raise ValueError(f"Expected assistant message, got {assistant_message['role']}")
 
     with st.chat_message("assistant"):
+        ended_at = call["ended_at"]
+        started_at = call["started_at"]
+        duration = ended_at - started_at
+        duration_seconds = duration.total_seconds()
+        if duration_seconds < 60:
+            st.write(f"Duration: {duration_seconds:.2f} seconds")
+        else:
+            minutes, seconds = divmod(duration_seconds, 60)
+            st.write(f"Duration: {int(minutes)} minutes {seconds:.2f} seconds")
+
         st.write(f"https://wandb.ai/shawn/programmer-sympy/weave/calls/{call.id}")
         st.write(f"State ref:", call["inputs.state._ref"])
         if "content" in assistant_message:
             st.write(assistant_message["content"])
-        if "tool_calls" in assistant_message:
+        if "tool_calls" in assistant_message and assistant_message["tool_calls"]:
             for t in assistant_message["tool_calls"]:
                 t_id = t["id"]
                 f_name = t["function"]["name"]

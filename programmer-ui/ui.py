@@ -7,6 +7,7 @@ from weave_project_picker import (
 )
 from page_playground import playground_page
 from page_sessions import sessions_page
+from page_swebench import swebench_page
 
 st.set_page_config(layout="wide")
 
@@ -18,6 +19,7 @@ with st.sidebar:
 
 sessions_pg = st.Page(sessions_page, title="Sessions")
 playground_pg = st.Page(playground_page, title="Playground")
+swebench_pg = st.Page(swebench_page, title="SWEBench", default=True)
 
-pg = st.navigation([sessions_pg, playground_pg])
+pg = st.navigation([sessions_pg, playground_pg, swebench_pg])
 pg.run()
