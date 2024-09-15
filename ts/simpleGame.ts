@@ -84,21 +84,24 @@ export class SimpleTextAdventure
     },
   ];
 
-  act = (actions: Action[]) => {
+  act = (actions: Action[]): string[] => {
+    const actionResponses = [];
     for (const action of actions) {
       switch (action.name) {
         case "move":
-          this.move(action.parameters.direction as string);
+          actionResponses.push(
+            this.move(action.parameters.direction as string)
+          );
           break;
         case "take":
-          this.take(action.parameters.item as string);
+          actionResponses.push(this.take(action.parameters.item as string));
           break;
         case "use":
-          this.use(action.parameters.item as string);
+          actionResponses.push(this.use(action.parameters.item as string));
           break;
       }
     }
-    return this;
+    return actionResponses;
   };
 
   private getDescription(): string {
@@ -113,38 +116,37 @@ export class SimpleTextAdventure
     return description;
   }
 
-  private move(direction: string): void {
+  private move(direction: string): string {
     const nextRoom = this.rooms[this.currentRoom].connections[direction];
     if (nextRoom) {
       this.currentRoom = nextRoom;
+      return `You moved to the ${nextRoom} room.`;
     } else {
-      console.log("You can't go that way.");
+      return "You can't go that way.";
     }
   }
 
-  private take(item: string): void {
+  private take(item: string): string {
     const room = this.rooms[this.currentRoom];
     if (room.item === item) {
       this.inventory.push(item);
       delete room.item;
-      console.log(`You took the ${item}.`);
+      return `You took the ${item}.`;
     } else {
-      console.log("There's no such item here.");
+      return "There's no such item here.";
     }
   }
 
-  private use(item: string): void {
+  private use(item: string): string {
     if (
       this.inventory.includes(item) &&
       this.currentRoom === "treasure" &&
       item === "golden key"
     ) {
-      console.log(
-        "You used the golden key to open the treasure chest. You win!"
-      );
       this.won = true;
+      return "You used the golden key to open the treasure chest. You win!";
     } else {
-      console.log("You can't use that here.");
+      return "You can't use that here.";
     }
   }
 }
