@@ -15,7 +15,7 @@ export type Action = {
   parameters: Record<string, any>;
 };
 
-export type ActionResponse = any;
+export type ActionResponse = unknown;
 
 interface Fn<I extends {}, O extends {}> {
   description: string;
@@ -69,6 +69,33 @@ type MemoryMessage =
   | MemoryMessageActionResponse;
 
 export type Memory = MemoryMessage[];
+
+type ActionWithId = Action & {
+  id: string;
+};
+
+const memoryAddAgentResponse = (
+  memory: Memory,
+  response: ActorResponse
+): Memory => {
+  return [...memory, response];
+};
+
+const memoryAddActionResponses = (
+  memory: Memory,
+  actions: ActionWithId[],
+  responses: ActionResponse[]
+): Memory => {
+  return [
+    ...memory,
+    ...responses.map((response, index) => ({
+      role: "tool" as const,
+      tool_call_id: actions[index].id,
+      content:
+        typeof response === "string" ? response : JSON.stringify(response),
+    })),
+  ];
+};
 
 export class LLM<I extends {}, O extends {}> implements Fn<I, O> {
   description = "LLM";
@@ -131,7 +158,8 @@ export class Stepper<O extends Observation>
       memory,
     });
     console.log("actorResponse", JSON.stringify(actorResponse, null, 2));
-    memory = [...memory, actorResponse];
+    memory = memoryAddAgentResponse(memory, actorResponse);
+
     if (actorResponse.tool_calls) {
       const actions = actorResponse.tool_calls.map((tool_call) => ({
         id: tool_call.id,
@@ -141,22 +169,8 @@ export class Stepper<O extends Observation>
 
       const actionResponses = env.act(actions);
       console.log("actionResponses", JSON.stringify(actionResponses, null, 2));
-      const actionResponsesWithIds = actionResponses.map((response, index) => ({
-        response,
-        id: actions[index].id,
-      }));
 
-      memory = [
-        ...memory,
-        ...actionResponsesWithIds.map((actionResponse) => ({
-          role: "tool" as "tool",
-          content:
-            typeof actionResponse.response === "string"
-              ? actionResponse.response
-              : JSON.stringify(actionResponse.response),
-          tool_call_id: actionResponse.id,
-        })),
-      ];
+      memory = memoryAddActionResponses(memory, actions, actionResponses);
     }
     return { env, memory };
   };
