@@ -5,7 +5,7 @@ import {
   trajectoryAddAgentResponse,
   trajectoryAddActionResponses,
 } from "./trajectory";
-import { Fn } from "./fn";
+import { Fn, BaseFn } from "./fn";
 
 interface Agent<O extends Observation>
   extends Fn<
@@ -20,37 +20,17 @@ interface Agent<O extends Observation>
   }) => Promise<AgentResponse>;
 }
 
-export class Stepper<O extends Observation>
-  implements
-    Fn<
-      { env: Environment<O>; trajectory: Trajectory },
-      { env: Environment<O>; trajectory: Trajectory }
-    >
-{
+export class Stepper<O extends Observation> extends BaseFn<
+  { env: Environment<O>; trajectory: Trajectory },
+  { env: Environment<O>; trajectory: Trajectory }
+> {
   description = "Stepper";
   agent: Agent<O>;
 
   constructor(agent: Agent<O>) {
+    super("Stepper");
     this.agent = agent;
   }
-
-  trials: (
-    n: number,
-    input: {
-      env: Environment<O>;
-      trajectory: Trajectory;
-    }
-  ) => Promise<{ env: Environment<O>; trajectory: Trajectory }[]> = async (
-    n,
-    input
-  ) => {
-    const results = [];
-    for (let i = 0; i < n; i++) {
-      const result = await this.run(input);
-      results.push(result);
-    }
-    return results;
-  };
 
   run: (input: {
     env: Environment<O>;
@@ -90,13 +70,10 @@ export class Stepper<O extends Observation>
   };
 }
 
-export class SequentialRunner<O extends Observation>
-  implements
-    Fn<
-      { env: Environment<O>; trajectory: Trajectory },
-      { env: Environment<O>; trajectory: Trajectory }
-    >
-{
+export class SequentialRunner<O extends Observation> extends BaseFn<
+  { env: Environment<O>; trajectory: Trajectory },
+  { env: Environment<O>; trajectory: Trajectory }
+> {
   description = "SequentialRunner";
   maxSteps: number;
   stepper: Stepper<O>;
@@ -107,28 +84,11 @@ export class SequentialRunner<O extends Observation>
     maxSteps: number,
     stopFn: (env: Environment<O>, trajectory: Trajectory) => boolean
   ) {
+    super("SequentialRunner");
     this.stepper = stepper;
     this.maxSteps = maxSteps;
     this.stopFn = stopFn;
   }
-
-  trials: (
-    n: number,
-    input: {
-      env: Environment<O>;
-      trajectory: Trajectory;
-    }
-  ) => Promise<{ env: Environment<O>; trajectory: Trajectory }[]> = async (
-    n,
-    input
-  ) => {
-    const results = [];
-    for (let i = 0; i < n; i++) {
-      const result = await this.run(input);
-      results.push(result);
-    }
-    return results;
-  };
 
   run: (input: {
     env: Environment<O>;
