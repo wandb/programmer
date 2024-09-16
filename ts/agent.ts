@@ -59,26 +59,11 @@ export class Stepper<O extends Observation>
     });
 
     return agentResponses.map((agentResponse) => {
-      let trajectoryDelta: Trajectory = [agentResponse];
-
       // clone
       const envState = env.save();
       let newEnv = env.load(envState);
 
-      if (agentResponse.tool_calls) {
-        const actions = agentResponse.tool_calls.map((toolCall) => ({
-          id: toolCall.id,
-          name: toolCall.function.name,
-          parameters: JSON.parse(toolCall.function.arguments),
-        }));
-
-        const actionResponses = newEnv.act(actions);
-        trajectoryDelta = trajectoryAddActionResponses(
-          trajectoryDelta,
-          actions,
-          actionResponses
-        );
-      }
+      const trajectoryDelta = this.stepEnv(agentResponse, newEnv);
       return { env: newEnv, trajectoryDelta };
     });
   }
@@ -96,6 +81,13 @@ export class Stepper<O extends Observation>
       observation,
       trajectory,
     });
+
+    let trajectoryDelta = this.stepEnv(agentResponse, env);
+
+    return { env, trajectoryDelta };
+  }
+
+  private stepEnv(agentResponse: AgentResponse, env: Environment<O>) {
     console.log("agentResponse", JSON.stringify(agentResponse, null, 2));
     let trajectoryDelta: Trajectory = [agentResponse];
 
@@ -115,7 +107,7 @@ export class Stepper<O extends Observation>
         actionResponses
       );
     }
-    return { env, trajectoryDelta };
+    return trajectoryDelta;
   }
 }
 
