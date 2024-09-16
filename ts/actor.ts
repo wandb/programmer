@@ -20,7 +20,7 @@ export type ActionResponse = unknown;
 interface Fn<I extends {}, O extends {}> {
   description: string;
   run: (input: I) => Promise<O>;
-  // trials: (n: number, input: I) => O[]
+  trials: (n: number, input: I) => Promise<O[]>;
   // map: (over: I[]) => O[]
 }
 
@@ -102,19 +102,31 @@ export class LLM<I extends {}, O extends {}> implements Fn<I, O> {
   model: string;
   temperature: number;
   paramsFn: (input: I) => any;
-  responseFn: (input: I, response: ChatCompletion) => O;
+  responseFn: (input: I, response: ChatCompletion.Choice) => O;
 
   constructor(
     model: string,
     temperature: number,
     paramsFn: (input: I) => any,
-    responseFn: (input: I, response: ChatCompletion) => O
+    responseFn: (input: I, response: ChatCompletion.Choice) => O
   ) {
     this.model = model;
     this.temperature = temperature;
     this.paramsFn = paramsFn;
     this.responseFn = responseFn;
   }
+
+  trials: (n: number, input: I) => Promise<O[]> = async (n, input) => {
+    const client = new OpenAI();
+    const params = this.paramsFn(input);
+    const response = await client.chat.completions.create({
+      model: this.model,
+      temperature: this.temperature,
+      n,
+      ...params,
+    });
+    return response.choices.map((choice) => this.responseFn(input, choice));
+  };
 
   run: (input: I) => Promise<O> = async (input) => {
     const client = new OpenAI();
@@ -124,7 +136,7 @@ export class LLM<I extends {}, O extends {}> implements Fn<I, O> {
       temperature: this.temperature,
       ...params,
     });
-    return this.responseFn(input, response);
+    return this.responseFn(input, response.choices[0]);
   };
 }
 
@@ -141,6 +153,24 @@ export class Stepper<O extends Observation>
   constructor(actor: Actor<O>) {
     this.actor = actor;
   }
+
+  trials: (
+    n: number,
+    input: {
+      env: Environment<O>;
+      memory: Memory;
+    }
+  ) => Promise<{ env: Environment<O>; memory: Memory }[]> = async (
+    n,
+    input
+  ) => {
+    const results = [];
+    for (let i = 0; i < n; i++) {
+      const result = await this.run(input);
+      results.push(result);
+    }
+    return results;
+  };
 
   run: (input: {
     env: Environment<O>;
@@ -197,6 +227,24 @@ export class SequentialRunner<O extends Observation>
     this.maxSteps = maxSteps;
     this.stopFn = stopFn;
   }
+
+  trials: (
+    n: number,
+    input: {
+      env: Environment<O>;
+      memory: Memory;
+    }
+  ) => Promise<{ env: Environment<O>; memory: Memory }[]> = async (
+    n,
+    input
+  ) => {
+    const results = [];
+    for (let i = 0; i < n; i++) {
+      const result = await this.run(input);
+      results.push(result);
+    }
+    return results;
+  };
 
   run: (input: {
     env: Environment<O>;

@@ -10,44 +10,39 @@ import {
 } from "./actor";
 import { SimpleTextAdventure } from "./simpleGame";
 
-const env = new SimpleTextAdventure();
-const actor = new LLM<
-  {
-    availableActions: ActionSpec[];
-    observation: EnvironmentObservationType<SimpleTextAdventure>;
-    memory: Memory;
-  },
-  ActorResponse
->(
-  "gpt-4o",
-  0,
-  (inputs: {
-    availableActions: ActionSpec[];
-    observation: EnvironmentObservationType<SimpleTextAdventure>;
-    memory: Memory;
-  }) => ({
-    messages: [
-      {
-        role: "system",
-        content: "You are a player in a simple text adventure game.",
-      },
-      ...inputs.memory,
-      {
-        role: "user",
-        content: inputs.observation.message,
-      },
-    ],
-    tools: inputs.availableActions.map((actionSpec) => ({
-      type: "function",
-      function: actionSpec,
-    })),
-  }),
-  (inputs, response) => {
-    return response.choices[0].message;
-  }
-);
-
 async function main() {
+  const env = new SimpleTextAdventure();
+  const actor = new LLM<
+    {
+      availableActions: ActionSpec[];
+      observation: EnvironmentObservationType<SimpleTextAdventure>;
+      memory: Memory;
+    },
+    ActorResponse
+  >(
+    "gpt-4o",
+    0,
+    (inputs) => ({
+      messages: [
+        {
+          role: "system",
+          content: "You are a player in a simple text adventure game.",
+        },
+        ...inputs.memory,
+        {
+          role: "user",
+          content: inputs.observation.message,
+        },
+      ],
+      tools: inputs.availableActions.map((actionSpec) => ({
+        type: "function",
+        function: actionSpec,
+      })),
+    }),
+    (inputs, choice) => {
+      return choice.message;
+    }
+  );
   const stepper = new Stepper(actor);
   const runner = new SequentialRunner(stepper, 10, (env, memory) => {
     const lastMessage = memory[memory.length - 1];
