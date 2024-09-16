@@ -1,4 +1,5 @@
-import { LLM, SequentialRunner, Stepper } from "./actor";
+import { SequentialRunner, Stepper } from "./actor";
+import { LLM } from "./llm";
 import { Trajectory, ActorResponse } from "./trajectory";
 import { ActionSpec, EnvironmentObservationType } from "./environment";
 import { SimpleTextAdventure } from "./simpleGame";
