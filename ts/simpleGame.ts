@@ -7,9 +7,9 @@ export class SimpleTextAdventure
     [key: string]: {
       description: string;
       connections: { [direction: string]: string };
-      item?: string;
     };
   };
+  private itemLocations: { [item: string]: string | null };
   private currentRoom: string;
   private inventory: string[];
   private won: boolean;
@@ -27,10 +27,8 @@ export class SimpleTextAdventure
         connections: { south: "start", east: "treasure" },
       },
       library: {
-        description:
-          "You are in a dusty library. There's a door to the west. You see a golden key on a shelf.",
+        description: "You are in a dusty library. There's a door to the west.",
         connections: { west: "start" },
-        item: "golden key",
       },
       treasure: {
         description:
@@ -38,10 +36,36 @@ export class SimpleTextAdventure
         connections: { west: "hallway" },
       },
     };
+    this.itemLocations = {
+      "golden key": "library",
+    };
     this.currentRoom = "start";
     this.inventory = [];
     this.won = false;
   }
+
+  save = () => {
+    return {
+      currentRoom: this.currentRoom,
+      inventory: this.inventory,
+      won: this.won,
+      itemLocations: this.itemLocations,
+    };
+  };
+
+  load = (state: {
+    currentRoom: string;
+    inventory: string[];
+    won: boolean;
+    itemLocations: { [item: string]: string | null };
+  }) => {
+    const loaded = new SimpleTextAdventure();
+    loaded.currentRoom = state.currentRoom;
+    loaded.inventory = state.inventory;
+    loaded.won = state.won;
+    loaded.itemLocations = state.itemLocations;
+    return loaded;
+  };
 
   observe = () => ({ message: this.getDescription(), won: this.won });
 
@@ -107,8 +131,11 @@ export class SimpleTextAdventure
   private getDescription(): string {
     const room = this.rooms[this.currentRoom];
     let description = room.description;
-    if (room.item) {
-      description += ` There is a ${room.item} here.`;
+    const itemsInRoom = Object.entries(this.itemLocations)
+      .filter(([_, location]) => location === this.currentRoom)
+      .map(([item, _]) => item);
+    if (itemsInRoom.length > 0) {
+      description += ` There is a ${itemsInRoom.join(", ")} here.`;
     }
     if (this.inventory.length > 0) {
       description += ` You are carrying: ${this.inventory.join(", ")}.`;
@@ -127,10 +154,12 @@ export class SimpleTextAdventure
   }
 
   private take(item: string): string {
-    const room = this.rooms[this.currentRoom];
-    if (room.item === item) {
+    if (this.itemLocations[item] === this.currentRoom) {
+      if (this.inventory.includes(item)) {
+        throw new Error("Programming error: item already in inventory.");
+      }
       this.inventory.push(item);
-      delete room.item;
+      this.itemLocations[item] = null;
       return `You took the ${item}.`;
     } else {
       return "There's no such item here.";
@@ -158,9 +187,6 @@ async function main() {
   game.act([{ name: "move", parameters: { direction: "east" } }]);
   console.log(game.observe());
 
-  game.act([{ name: "move", parameters: { direction: "east" } }]);
-  console.log(game.observe());
-
   game.act([{ name: "take", parameters: { item: "golden key" } }]);
   console.log(game.observe());
 
@@ -177,6 +203,13 @@ async function main() {
   console.log(game.observe());
 
   console.log("Game won:", game.observe().won);
+
+  // Test save and load
+  const savedState = game.save();
+  console.log("Saved state:", savedState);
+
+  const loadedGame = game.load(savedState);
+  console.log("Loaded game state:", loadedGame.observe());
 }
 
 // main().catch(console.error);

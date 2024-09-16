@@ -49,3 +49,10 @@ export const trajectoryAddActionResponses = (
     })),
   ];
 };
+
+export const trajectoryAdd = (
+  trajectory: Trajectory,
+  trajectoryDelta: Trajectory
+): Trajectory => {
+  return [...trajectory, ...trajectoryDelta];
+};
