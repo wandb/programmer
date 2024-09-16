@@ -161,10 +161,10 @@ export class Stepper<O extends Observation>
     memory = memoryAddAgentResponse(memory, actorResponse);
 
     if (actorResponse.tool_calls) {
-      const actions = actorResponse.tool_calls.map((tool_call) => ({
-        id: tool_call.id,
-        name: tool_call.function.name,
-        parameters: JSON.parse(tool_call.function.arguments),
+      const actions = actorResponse.tool_calls.map((toolCall) => ({
+        id: toolCall.id,
+        name: toolCall.function.name,
+        parameters: JSON.parse(toolCall.function.arguments),
       }));
 
       const actionResponses = env.act(actions);
@@ -205,20 +205,18 @@ export class SequentialRunner<O extends Observation>
     env,
     memory,
   }) => {
-    let current_env = env;
-    let current_memory = memory;
     for (let i = 0; i < this.maxSteps; i++) {
-      const { env: new_env, memory: new_memory } = await this.stepper.run({
-        env: current_env,
-        memory: current_memory,
+      const { env: newEnv, memory: newMemory } = await this.stepper.run({
+        env,
+        memory,
       });
-      if (this.stopFn(new_env, new_memory)) {
+      env = newEnv;
+      memory = newMemory;
+      if (this.stopFn(env, memory)) {
         break;
       }
-      current_env = new_env;
-      current_memory = new_memory;
     }
-    return { env: current_env, memory: current_memory };
+    return { env, memory };
   };
 }
 
