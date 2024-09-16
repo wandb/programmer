@@ -41,16 +41,14 @@ export class Stepper<O extends Observation>
     this.agent = agent;
   }
 
-  trials: (
+  async trials(
     n: number,
     input: {
       trajectory: Trajectory;
       env: Environment<O>;
     }
-  ) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }[]> = async (
-    n,
-    { trajectory, env }
-  ) => {
+  ): Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }[]> {
+    const { trajectory, env } = input;
     const availableActions = env.availableActions();
     const observation = env.observe();
     console.log("observation", observation);
@@ -83,15 +81,13 @@ export class Stepper<O extends Observation>
       }
       return { env: newEnv, trajectoryDelta };
     });
-  };
+  }
 
-  run: (input: {
+  async run(input: {
     trajectory: Trajectory;
     env: Environment<O>;
-  }) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> = async ({
-    trajectory,
-    env,
-  }) => {
+  }): Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> {
+    const { trajectory, env } = input;
     const availableActions = env.availableActions();
     const observation = env.observe();
     console.log("observation", observation);
@@ -120,7 +116,7 @@ export class Stepper<O extends Observation>
       );
     }
     return { env, trajectoryDelta };
-  };
+  }
 }
 
 export class SequentialRunner<O extends Observation>
@@ -146,13 +142,11 @@ export class SequentialRunner<O extends Observation>
     this.stopFn = stopFn;
   }
 
-  run: (input: {
+  async run(input: {
     trajectory: Trajectory;
     env: Environment<O>;
-  }) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> = async ({
-    trajectory,
-    env,
-  }) => {
+  }): Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> {
+    let { trajectory, env } = input;
     let trajectoryDelta: Trajectory = [];
     for (let i = 0; i < this.maxSteps; i++) {
       const { trajectoryDelta: newTrajectoryDelta, env: newEnv } =
@@ -168,7 +162,7 @@ export class SequentialRunner<O extends Observation>
       }
     }
     return { trajectoryDelta, env };
-  };
+  }
 }
 
 async function main() {}

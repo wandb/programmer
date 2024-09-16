@@ -1,3 +1,5 @@
+import { boundOp } from "weave";
+
 export interface Fn<I extends {}, O extends {}> {
   description: string;
   run: (input: I) => Promise<O>;
@@ -6,11 +8,13 @@ export interface Fn<I extends {}, O extends {}> {
 }
 
 export class BaseFn<I extends {}, O extends {}> implements Fn<I, O> {
-  constructor(public description: string) {}
+  constructor(public description: string) {
+    this.trials = boundOp(this, this.trials, {
+      parameterNames: ["n", "input"],
+    });
+    this.run = boundOp(this, this.run, { parameterNames: ["input"] });
+  }
 
-  //   run: (input: I) => Promise<O> = async (input: I) => {
-  //     throw new Error("Method not implemented.");
-  //   };
   async run(input: I): Promise<O> {
     throw new Error("Method not implemented.");
   }

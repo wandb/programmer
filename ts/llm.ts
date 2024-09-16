@@ -1,4 +1,5 @@
 import { OpenAI } from "openai";
+import { wrapOpenAI } from "weave";
 import { ChatCompletionMessage } from "openai/resources/chat/completions";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
@@ -22,11 +23,8 @@ export class LLM<I extends {}> extends BaseFn<I, ChatCompletionMessage> {
     this.paramsFn = paramsFn;
   }
 
-  trials: (n: number, input: I) => Promise<ChatCompletionMessage[]> = async (
-    n,
-    input
-  ) => {
-    const client = new OpenAI();
+  async trials(n: number, input: I): Promise<ChatCompletionMessage[]> {
+    const client = wrapOpenAI();
     const params = this.paramsFn(input);
     const response = await client.chat.completions.create({
       model: this.model,
@@ -35,10 +33,10 @@ export class LLM<I extends {}> extends BaseFn<I, ChatCompletionMessage> {
       ...params,
     });
     return response.choices.map((choice) => choice.message);
-  };
+  }
 
-  run: (input: I) => Promise<ChatCompletionMessage> = async (input) => {
-    const client = new OpenAI();
+  async run(input: I): Promise<ChatCompletionMessage> {
+    const client = wrapOpenAI();
     const params = this.paramsFn(input);
     const response = await client.chat.completions.create({
       model: this.model,
@@ -46,7 +44,7 @@ export class LLM<I extends {}> extends BaseFn<I, ChatCompletionMessage> {
       ...params,
     });
     return response.choices[0].message;
-  };
+  }
 }
 
 export class LLMStructuredOutput<
@@ -76,7 +74,7 @@ export class LLMStructuredOutput<
     this.responseFormat = responseFormat;
   }
 
-  trials: (n: number, input: I) => Promise<O[]> = async (n, input) => {
+  async trials(n: number, input: I): Promise<O[]> {
     const client = new OpenAI();
     const messages = this.messagesFn(input);
     const response = await client.beta.chat.completions.parse({
@@ -87,10 +85,10 @@ export class LLMStructuredOutput<
       response_format: zodResponseFormat(this.responseFormat, "result"),
     });
     return response.choices.map((choice) => choice.message.parsed as any);
-  };
+  }
 
-  run: (input: I) => Promise<O> = async (input) => {
-    const client = new OpenAI();
+  async run(input: I): Promise<O> {
+    const client = wrapOpenAI();
     const messages = this.messagesFn(input);
     const response = await client.beta.chat.completions.parse({
       model: this.model,
@@ -99,5 +97,5 @@ export class LLMStructuredOutput<
       response_format: zodResponseFormat(this.responseFormat, "result"),
     });
     return response.choices[0].message.parsed as any;
-  };
+  }
 }

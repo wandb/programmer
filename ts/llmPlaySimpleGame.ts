@@ -9,8 +9,11 @@ import {
 import { SimpleTextAdventure } from "./simpleGame";
 import { BestTrial } from "./strategy";
 import { z } from "zod";
+import { init } from "weave";
 
 async function main() {
+  await init("programmerjs-dev1");
+
   const env = new SimpleTextAdventure();
   const actor = new LLM(
     "Solve the game",
