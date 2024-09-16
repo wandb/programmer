@@ -39,55 +39,55 @@ export type ActorResponse = ChatCompletionMessage;
 
 interface Actor<O extends Observation>
   extends Fn<
-    { availableActions: ActionSpec[]; observation: O; memory: Memory },
+    { availableActions: ActionSpec[]; observation: O; trajectory: Trajectory },
     ActorResponse
   > {
   // description = "Actor"
   run: (input: {
     availableActions: ActionSpec[];
     observation: O;
-    memory: Memory;
+    trajectory: Trajectory;
   }) => Promise<ActorResponse>;
 }
 
-type MemoryMessageAgent = ActorResponse;
+type TrajectoryMessageAgent = ActorResponse;
 
-type MemoryMessageUser = {
+type TrajectoryMessageUser = {
   role: "user";
   message: string;
 };
 
-type MemoryMessageActionResponse = {
+type TrajectoryMessageActionResponse = {
   role: "tool";
   content: string;
   tool_call_id: string;
 };
 
-type MemoryMessage =
-  | MemoryMessageAgent
-  | MemoryMessageUser
-  | MemoryMessageActionResponse;
+type TrajectoryMessage =
+  | TrajectoryMessageAgent
+  | TrajectoryMessageUser
+  | TrajectoryMessageActionResponse;
 
-export type Memory = MemoryMessage[];
+export type Trajectory = TrajectoryMessage[];
 
 type ActionWithId = Action & {
   id: string;
 };
 
-const memoryAddAgentResponse = (
-  memory: Memory,
+const trajectoryAddAgentResponse = (
+  trajectory: Trajectory,
   response: ActorResponse
-): Memory => {
-  return [...memory, response];
+): Trajectory => {
+  return [...trajectory, response];
 };
 
-const memoryAddActionResponses = (
-  memory: Memory,
+const trajectoryAddActionResponses = (
+  trajectory: Trajectory,
   actions: ActionWithId[],
   responses: ActionResponse[]
-): Memory => {
+): Trajectory => {
   return [
-    ...memory,
+    ...trajectory,
     ...responses.map((response, index) => ({
       role: "tool" as const,
       tool_call_id: actions[index].id,
@@ -143,8 +143,8 @@ export class LLM<I extends {}, O extends {}> implements Fn<I, O> {
 export class Stepper<O extends Observation>
   implements
     Fn<
-      { env: Environment<O>; memory: Memory },
-      { env: Environment<O>; memory: Memory }
+      { env: Environment<O>; trajectory: Trajectory },
+      { env: Environment<O>; trajectory: Trajectory }
     >
 {
   description = "Stepper";
@@ -158,9 +158,9 @@ export class Stepper<O extends Observation>
     n: number,
     input: {
       env: Environment<O>;
-      memory: Memory;
+      trajectory: Trajectory;
     }
-  ) => Promise<{ env: Environment<O>; memory: Memory }[]> = async (
+  ) => Promise<{ env: Environment<O>; trajectory: Trajectory }[]> = async (
     n,
     input
   ) => {
@@ -174,10 +174,10 @@ export class Stepper<O extends Observation>
 
   run: (input: {
     env: Environment<O>;
-    memory: Memory;
-  }) => Promise<{ env: Environment<O>; memory: Memory }> = async ({
+    trajectory: Trajectory;
+  }) => Promise<{ env: Environment<O>; trajectory: Trajectory }> = async ({
     env,
-    memory,
+    trajectory,
   }) => {
     const availableActions = env.availableActions();
     const observation = env.observe();
@@ -185,10 +185,10 @@ export class Stepper<O extends Observation>
     const actorResponse = await this.actor.run({
       availableActions,
       observation,
-      memory,
+      trajectory,
     });
     console.log("actorResponse", JSON.stringify(actorResponse, null, 2));
-    memory = memoryAddAgentResponse(memory, actorResponse);
+    trajectory = trajectoryAddAgentResponse(trajectory, actorResponse);
 
     if (actorResponse.tool_calls) {
       const actions = actorResponse.tool_calls.map((toolCall) => ({
@@ -200,28 +200,32 @@ export class Stepper<O extends Observation>
       const actionResponses = env.act(actions);
       console.log("actionResponses", JSON.stringify(actionResponses, null, 2));
 
-      memory = memoryAddActionResponses(memory, actions, actionResponses);
+      trajectory = trajectoryAddActionResponses(
+        trajectory,
+        actions,
+        actionResponses
+      );
     }
-    return { env, memory };
+    return { env, trajectory };
   };
 }
 
 export class SequentialRunner<O extends Observation>
   implements
     Fn<
-      { env: Environment<O>; memory: Memory },
-      { env: Environment<O>; memory: Memory }
+      { env: Environment<O>; trajectory: Trajectory },
+      { env: Environment<O>; trajectory: Trajectory }
     >
 {
   description = "SequentialRunner";
   maxSteps: number;
   stepper: Stepper<O>;
-  stopFn: (env: Environment<O>, memory: Memory) => boolean;
+  stopFn: (env: Environment<O>, trajectory: Trajectory) => boolean;
 
   constructor(
     stepper: Stepper<O>,
     maxSteps: number,
-    stopFn: (env: Environment<O>, memory: Memory) => boolean
+    stopFn: (env: Environment<O>, trajectory: Trajectory) => boolean
   ) {
     this.stepper = stepper;
     this.maxSteps = maxSteps;
@@ -232,9 +236,9 @@ export class SequentialRunner<O extends Observation>
     n: number,
     input: {
       env: Environment<O>;
-      memory: Memory;
+      trajectory: Trajectory;
     }
-  ) => Promise<{ env: Environment<O>; memory: Memory }[]> = async (
+  ) => Promise<{ env: Environment<O>; trajectory: Trajectory }[]> = async (
     n,
     input
   ) => {
@@ -248,23 +252,25 @@ export class SequentialRunner<O extends Observation>
 
   run: (input: {
     env: Environment<O>;
-    memory: Memory;
-  }) => Promise<{ env: Environment<O>; memory: Memory }> = async ({
+    trajectory: Trajectory;
+  }) => Promise<{ env: Environment<O>; trajectory: Trajectory }> = async ({
     env,
-    memory,
+    trajectory,
   }) => {
     for (let i = 0; i < this.maxSteps; i++) {
-      const { env: newEnv, memory: newMemory } = await this.stepper.run({
-        env,
-        memory,
-      });
+      const { env: newEnv, trajectory: newTrajectory } = await this.stepper.run(
+        {
+          env,
+          trajectory,
+        }
+      );
       env = newEnv;
-      memory = newMemory;
-      if (this.stopFn(env, memory)) {
+      trajectory = newTrajectory;
+      if (this.stopFn(env, trajectory)) {
         break;
       }
     }
-    return { env, memory };
+    return { env, trajectory };
   };
 }
 

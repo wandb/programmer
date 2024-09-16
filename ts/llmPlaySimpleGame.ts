@@ -6,7 +6,7 @@ import {
   LLM,
   SequentialRunner,
   Stepper,
-  Memory,
+  Trajectory,
 } from "./actor";
 import { SimpleTextAdventure } from "./simpleGame";
 
@@ -16,7 +16,7 @@ async function main() {
     {
       availableActions: ActionSpec[];
       observation: EnvironmentObservationType<SimpleTextAdventure>;
-      memory: Memory;
+      trajectory: Trajectory;
     },
     ActorResponse
   >(
@@ -28,7 +28,7 @@ async function main() {
           role: "system",
           content: "You are a player in a simple text adventure game.",
         },
-        ...inputs.memory,
+        ...inputs.trajectory,
         {
           role: "user",
           content: inputs.observation.message,
@@ -44,16 +44,16 @@ async function main() {
     }
   );
   const stepper = new Stepper(actor);
-  const runner = new SequentialRunner(stepper, 10, (env, memory) => {
-    const lastMessage = memory[memory.length - 1];
+  const runner = new SequentialRunner(stepper, 10, (env, trajectory) => {
+    const lastMessage = trajectory[trajectory.length - 1];
     if (lastMessage.role === "assistant" && lastMessage.tool_calls == null) {
       return true;
     }
     return false;
   });
-  const result = await runner.run({ env, memory: [] });
+  const result = await runner.run({ env, trajectory: [] });
   console.log(result.env.observe());
-  // console.log(JSON.stringify(result.memory, null, 2));
+  // console.log(JSON.stringify(result.trajectory, null, 2));
 }
 
 main().catch(console.error);
