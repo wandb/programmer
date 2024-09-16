@@ -1,16 +1,13 @@
 import { OpenAI } from "openai";
-import {
-  ChatCompletion,
-  ChatCompletionMessage,
-} from "openai/resources/chat/completions";
+import { ChatCompletion } from "openai/resources/chat/completions";
 
+import { ActionSpec, Observation, Environment } from "./environment";
 import {
-  ActionSpec,
-  Action,
-  ActionResponse,
-  Observation,
-  Environment,
-} from "./environment";
+  Trajectory,
+  ActorResponse,
+  trajectoryAddAgentResponse,
+  trajectoryAddActionResponses,
+} from "./trajectory";
 
 interface Fn<I extends {}, O extends {}> {
   description: string;
@@ -18,8 +15,6 @@ interface Fn<I extends {}, O extends {}> {
   trials: (n: number, input: I) => Promise<O[]>;
   // map: (over: I[]) => O[]
 }
-
-export type ActorResponse = ChatCompletionMessage;
 
 interface Actor<O extends Observation>
   extends Fn<
@@ -33,53 +28,6 @@ interface Actor<O extends Observation>
     trajectory: Trajectory;
   }) => Promise<ActorResponse>;
 }
-
-type TrajectoryMessageAgent = ActorResponse;
-
-type TrajectoryMessageUser = {
-  role: "user";
-  message: string;
-};
-
-type TrajectoryMessageActionResponse = {
-  role: "tool";
-  content: string;
-  tool_call_id: string;
-};
-
-type TrajectoryMessage =
-  | TrajectoryMessageAgent
-  | TrajectoryMessageUser
-  | TrajectoryMessageActionResponse;
-
-export type Trajectory = TrajectoryMessage[];
-
-type ActionWithId = Action & {
-  id: string;
-};
-
-const trajectoryAddAgentResponse = (
-  trajectory: Trajectory,
-  response: ActorResponse
-): Trajectory => {
-  return [...trajectory, response];
-};
-
-const trajectoryAddActionResponses = (
-  trajectory: Trajectory,
-  actions: ActionWithId[],
-  responses: ActionResponse[]
-): Trajectory => {
-  return [
-    ...trajectory,
-    ...responses.map((response, index) => ({
-      role: "tool" as const,
-      tool_call_id: actions[index].id,
-      content:
-        typeof response === "string" ? response : JSON.stringify(response),
-    })),
-  ];
-};
 
 export class LLM<I extends {}, O extends {}> implements Fn<I, O> {
   description = "LLM";
