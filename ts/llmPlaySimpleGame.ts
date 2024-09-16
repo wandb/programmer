@@ -8,18 +8,15 @@ import { z } from "zod";
 
 async function main() {
   const env = new SimpleTextAdventure();
-  const actor = new LLM<
-    {
-      availableActions: ActionSpec[];
-      observation: EnvironmentObservationType<SimpleTextAdventure>;
-      trajectory: Trajectory;
-    },
-    AgentResponse
-  >(
+  const actor = new LLM(
     "Solve the game",
     "gpt-4o-2024-08-06",
     0.7,
-    (inputs) => ({
+    (inputs: {
+      availableActions: ActionSpec[];
+      observation: EnvironmentObservationType<SimpleTextAdventure>;
+      trajectory: Trajectory;
+    }) => ({
       messages: [
         {
           role: "system",
@@ -38,10 +35,7 @@ async function main() {
         type: "function",
         function: actionSpec,
       })),
-    }),
-    (inputs, choice) => {
-      return choice.message;
-    }
+    })
   );
   const pick = new LLMStructuredOutput(
     "Pick the best output",
@@ -85,9 +79,9 @@ async function main() {
       choiceId: z.string(),
     })
   );
-  const llmTrials = new BestTrial(actor, pick, 3);
+  // const llmTrials = new BestTrial(actor, pick, 3);
 
-  const stepper = new Stepper(llmTrials);
+  const stepper = new Stepper(actor);
   const runner = new SequentialRunner(stepper, 20, (env, trajectory) => {
     if (env.observe().won) {
       return true;

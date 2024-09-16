@@ -1,35 +1,31 @@
 import { OpenAI } from "openai";
-import { ChatCompletion } from "openai/resources/chat/completions";
+import { ChatCompletionMessage } from "openai/resources/chat/completions";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
 import { Fn, BaseFn } from "./fn";
 
-export class LLM<I extends {}, O extends {}>
-  extends BaseFn<I, O>
-  implements Fn<I, O>
-{
-  // description = "LLM";
+export class LLM<I extends {}> extends BaseFn<I, ChatCompletionMessage> {
   model: string;
   temperature: number;
   paramsFn: (input: I) => any;
-  responseFn: (input: I, response: ChatCompletion.Choice) => O;
 
   constructor(
     description: string,
     model: string,
     temperature: number,
-    paramsFn: (input: I) => any,
-    responseFn: (input: I, response: ChatCompletion.Choice) => O
+    paramsFn: (input: I) => any
   ) {
     super(description);
     this.model = model;
     this.temperature = temperature;
     this.paramsFn = paramsFn;
-    this.responseFn = responseFn;
   }
 
-  trials: (n: number, input: I) => Promise<O[]> = async (n, input) => {
+  trials: (n: number, input: I) => Promise<ChatCompletionMessage[]> = async (
+    n,
+    input
+  ) => {
     const client = new OpenAI();
     const params = this.paramsFn(input);
     const response = await client.chat.completions.create({
@@ -38,10 +34,10 @@ export class LLM<I extends {}, O extends {}>
       n,
       ...params,
     });
-    return response.choices.map((choice) => this.responseFn(input, choice));
+    return response.choices.map((choice) => choice.message);
   };
 
-  run: (input: I) => Promise<O> = async (input) => {
+  run: (input: I) => Promise<ChatCompletionMessage> = async (input) => {
     const client = new OpenAI();
     const params = this.paramsFn(input);
     const response = await client.chat.completions.create({
@@ -49,7 +45,7 @@ export class LLM<I extends {}, O extends {}>
       temperature: this.temperature,
       ...params,
     });
-    return this.responseFn(input, response.choices[0]);
+    return response.choices[0].message;
   };
 }
 
