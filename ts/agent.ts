@@ -142,6 +142,25 @@ export class SequentialRunner<O extends Observation>
     this.stopFn = stopFn;
   }
 
+  async trials(
+    n: number,
+    input: {
+      trajectory: Trajectory;
+      env: Environment<O>;
+    }
+  ): Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }[]> {
+    return await Promise.all(
+      Array.from({ length: n }, async () => {
+        const envState = input.env.save();
+        const clonedEnv = input.env.load(envState);
+        return await this.run({
+          trajectory: input.trajectory,
+          env: clonedEnv,
+        });
+      })
+    );
+  }
+
   async run(input: {
     trajectory: Trajectory;
     env: Environment<O>;

@@ -1,6 +1,6 @@
 import { BaseFn, Fn } from "./fn";
 
-export class BestTrial<I extends {}, O extends {}> extends BaseFn<I, O> {
+export class BestOfNTrials<I extends {}, O extends {}> extends BaseFn<I, O> {
   constructor(
     public fn: Fn<I, O>,
     public pick: Fn<

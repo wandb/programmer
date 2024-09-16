@@ -45,12 +45,14 @@ export class SimpleTextAdventure
   }
 
   save = () => {
-    return {
-      currentRoom: this.currentRoom,
-      inventory: this.inventory,
-      won: this.won,
-      itemLocations: this.itemLocations,
-    };
+    return JSON.parse(
+      JSON.stringify({
+        currentRoom: this.currentRoom,
+        inventory: this.inventory,
+        won: this.won,
+        itemLocations: this.itemLocations,
+      })
+    );
   };
 
   load = (state: {
