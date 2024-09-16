@@ -1,4 +1,4 @@
-import { Action, Environment } from "./actor";
+import { Action, Environment } from "./environment";
 
 export class SimpleTextAdventure
   implements Environment<{ message: string; won: boolean }>

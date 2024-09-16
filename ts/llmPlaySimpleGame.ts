@@ -1,13 +1,11 @@
 import {
-  Action,
-  ActionSpec,
   ActorResponse,
-  EnvironmentObservationType,
   LLM,
   SequentialRunner,
   Stepper,
   Trajectory,
 } from "./actor";
+import { ActionSpec, EnvironmentObservationType } from "./environment";
 import { SimpleTextAdventure } from "./simpleGame";
 
 async function main() {

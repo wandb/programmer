@@ -4,18 +4,13 @@ import {
   ChatCompletionMessage,
 } from "openai/resources/chat/completions";
 
-export interface ActionSpec {
-  name: string;
-  description: string;
-  parameters: Record<string, any>; // JSON Schema
-}
-
-export type Action = {
-  name: string;
-  parameters: Record<string, any>;
-};
-
-export type ActionResponse = unknown;
+import {
+  ActionSpec,
+  Action,
+  ActionResponse,
+  Observation,
+  Environment,
+} from "./environment";
 
 interface Fn<I extends {}, O extends {}> {
   description: string;
@@ -23,17 +18,6 @@ interface Fn<I extends {}, O extends {}> {
   trials: (n: number, input: I) => Promise<O[]>;
   // map: (over: I[]) => O[]
 }
-
-interface Observation {}
-
-export interface Environment<O extends Observation> {
-  observe: () => O;
-  availableActions: () => ActionSpec[];
-  act: (actions: Action[]) => ActionResponse[];
-}
-
-export type EnvironmentObservationType<E extends Environment<any>> =
-  E extends Environment<infer O> ? O : never;
 
 export type ActorResponse = ChatCompletionMessage;
 
