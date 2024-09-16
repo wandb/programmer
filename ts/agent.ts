@@ -1,23 +1,23 @@
 import { ActionSpec, Observation, Environment } from "./environment";
 import {
   Trajectory,
-  ActorResponse,
+  AgentResponse,
   trajectoryAddAgentResponse,
   trajectoryAddActionResponses,
 } from "./trajectory";
 import { Fn } from "./fn";
 
-interface Actor<O extends Observation>
+interface Agent<O extends Observation>
   extends Fn<
     { availableActions: ActionSpec[]; observation: O; trajectory: Trajectory },
-    ActorResponse
+    AgentResponse
   > {
-  // description = "Actor"
+  // description = "Agent"
   run: (input: {
     availableActions: ActionSpec[];
     observation: O;
     trajectory: Trajectory;
-  }) => Promise<ActorResponse>;
+  }) => Promise<AgentResponse>;
 }
 
 export class Stepper<O extends Observation>
@@ -28,10 +28,10 @@ export class Stepper<O extends Observation>
     >
 {
   description = "Stepper";
-  actor: Actor<O>;
+  agent: Agent<O>;
 
-  constructor(actor: Actor<O>) {
-    this.actor = actor;
+  constructor(agent: Agent<O>) {
+    this.agent = agent;
   }
 
   trials: (
@@ -62,16 +62,16 @@ export class Stepper<O extends Observation>
     const availableActions = env.availableActions();
     const observation = env.observe();
     console.log("observation", observation);
-    const actorResponse = await this.actor.run({
+    const agentResponse = await this.agent.run({
       availableActions,
       observation,
       trajectory,
     });
-    console.log("actorResponse", JSON.stringify(actorResponse, null, 2));
-    trajectory = trajectoryAddAgentResponse(trajectory, actorResponse);
+    console.log("agentResponse", JSON.stringify(agentResponse, null, 2));
+    trajectory = trajectoryAddAgentResponse(trajectory, agentResponse);
 
-    if (actorResponse.tool_calls) {
-      const actions = actorResponse.tool_calls.map((toolCall) => ({
+    if (agentResponse.tool_calls) {
+      const actions = agentResponse.tool_calls.map((toolCall) => ({
         id: toolCall.id,
         name: toolCall.function.name,
         parameters: JSON.parse(toolCall.function.arguments),

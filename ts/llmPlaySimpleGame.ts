@@ -1,6 +1,6 @@
-import { SequentialRunner, Stepper } from "./actor";
+import { SequentialRunner, Stepper } from "./agent";
 import { LLM } from "./llm";
-import { Trajectory, ActorResponse } from "./trajectory";
+import { Trajectory, AgentResponse } from "./trajectory";
 import { ActionSpec, EnvironmentObservationType } from "./environment";
 import { SimpleTextAdventure } from "./simpleGame";
 
@@ -12,7 +12,7 @@ async function main() {
       observation: EnvironmentObservationType<SimpleTextAdventure>;
       trajectory: Trajectory;
     },
-    ActorResponse
+    AgentResponse
   >(
     "gpt-4o",
     0,

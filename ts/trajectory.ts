@@ -1,9 +1,9 @@
 import { ChatCompletionMessage } from "openai/resources/chat/completions";
 import { Action, ActionResponse } from "./environment";
 
-export type ActorResponse = ChatCompletionMessage;
+export type AgentResponse = ChatCompletionMessage;
 
-type TrajectoryMessageAgent = ActorResponse;
+type TrajectoryMessageAgent = AgentResponse;
 
 type TrajectoryMessageUser = {
   role: "user";
@@ -29,7 +29,7 @@ type ActionWithId = Action & {
 
 export const trajectoryAddAgentResponse = (
   trajectory: Trajectory,
-  response: ActorResponse
+  response: AgentResponse
 ): Trajectory => {
   return [...trajectory, response];
 };
