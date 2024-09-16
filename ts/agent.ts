@@ -21,17 +21,15 @@ interface Agent<O extends Observation>
   }) => Promise<AgentResponse>;
 }
 
-// OK I think we really want trajectory delta, instead of modified trajectory
-
 type AgentFn<O extends Observation> = Fn<
-  { env: Environment<O>; trajectory: Trajectory },
-  { env: Environment<O>; trajectoryDelta: Trajectory }
+  { trajectory: Trajectory; env: Environment<O> },
+  { trajectoryDelta: Trajectory; env: Environment<O> }
 >;
 
 export class Stepper<O extends Observation>
   extends BaseFn<
-    { env: Environment<O>; trajectory: Trajectory },
-    { env: Environment<O>; trajectoryDelta: Trajectory }
+    { trajectory: Trajectory; env: Environment<O> },
+    { trajectoryDelta: Trajectory; env: Environment<O> }
   >
   implements AgentFn<O>
 {
@@ -46,12 +44,12 @@ export class Stepper<O extends Observation>
   trials: (
     n: number,
     input: {
-      env: Environment<O>;
       trajectory: Trajectory;
+      env: Environment<O>;
     }
-  ) => Promise<{ env: Environment<O>; trajectoryDelta: Trajectory }[]> = async (
+  ) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }[]> = async (
     n,
-    { env, trajectory }
+    { trajectory, env }
   ) => {
     const availableActions = env.availableActions();
     const observation = env.observe();
@@ -88,11 +86,11 @@ export class Stepper<O extends Observation>
   };
 
   run: (input: {
-    env: Environment<O>;
     trajectory: Trajectory;
-  }) => Promise<{ env: Environment<O>; trajectoryDelta: Trajectory }> = async ({
-    env,
+    env: Environment<O>;
+  }) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> = async ({
     trajectory,
+    env,
   }) => {
     const availableActions = env.availableActions();
     const observation = env.observe();
@@ -127,20 +125,20 @@ export class Stepper<O extends Observation>
 
 export class SequentialRunner<O extends Observation>
   extends BaseFn<
-    { env: Environment<O>; trajectory: Trajectory },
-    { env: Environment<O>; trajectoryDelta: Trajectory }
+    { trajectory: Trajectory; env: Environment<O> },
+    { trajectoryDelta: Trajectory; env: Environment<O> }
   >
   implements AgentFn<O>
 {
   description = "SequentialRunner";
   maxSteps: number;
   stepper: AgentFn<O>;
-  stopFn: (env: Environment<O>, trajectory: Trajectory) => boolean;
+  stopFn: (trajectory: Trajectory, env: Environment<O>) => boolean;
 
   constructor(
     stepper: AgentFn<O>,
     maxSteps: number,
-    stopFn: (env: Environment<O>, trajectory: Trajectory) => boolean
+    stopFn: (trajectory: Trajectory, env: Environment<O>) => boolean
   ) {
     super("SequentialRunner");
     this.stepper = stepper;
@@ -149,27 +147,27 @@ export class SequentialRunner<O extends Observation>
   }
 
   run: (input: {
-    env: Environment<O>;
     trajectory: Trajectory;
-  }) => Promise<{ env: Environment<O>; trajectoryDelta: Trajectory }> = async ({
-    env,
+    env: Environment<O>;
+  }) => Promise<{ trajectoryDelta: Trajectory; env: Environment<O> }> = async ({
     trajectory,
+    env,
   }) => {
     let trajectoryDelta: Trajectory = [];
     for (let i = 0; i < this.maxSteps; i++) {
-      const { env: newEnv, trajectoryDelta: newTrajectoryDelta } =
+      const { trajectoryDelta: newTrajectoryDelta, env: newEnv } =
         await this.stepper.run({
-          env,
           trajectory,
+          env,
         });
       env = newEnv;
       trajectoryDelta = trajectoryAdd(trajectoryDelta, newTrajectoryDelta);
       trajectory = trajectoryAdd(trajectory, newTrajectoryDelta);
-      if (this.stopFn(env, trajectory)) {
+      if (this.stopFn(trajectory, env)) {
         break;
       }
     }
-    return { env, trajectoryDelta };
+    return { trajectoryDelta, env };
   };
 }
 

@@ -17,9 +17,9 @@ async function main() {
     "gpt-4o-2024-08-06",
     0.7,
     (inputs: {
+      trajectory: Trajectory;
       availableActions: ActionSpec[];
       observation: EnvironmentObservationType<SimpleTextAdventure>;
-      trajectory: Trajectory;
     }) => ({
       messages: [
         {
@@ -94,14 +94,14 @@ async function main() {
     (inputs: {
       description: string;
       input: {
-        env: EnvironmentType<SimpleTextAdventure>;
         trajectory: Trajectory;
+        env: EnvironmentType<SimpleTextAdventure>;
       };
       outputs: {
         id: string;
         output: {
-          env: EnvironmentType<SimpleTextAdventure>;
           trajectoryDelta: Trajectory;
+          env: EnvironmentType<SimpleTextAdventure>;
         };
       }[];
     }) => [
@@ -136,7 +136,7 @@ async function main() {
   );
   const stepperTrials = new BestTrial(stepper, stepperPick, 3);
 
-  const runner = new SequentialRunner(stepperTrials, 20, (env, trajectory) => {
+  const runner = new SequentialRunner(stepperTrials, 20, (trajectory, env) => {
     if (env.observe().won) {
       return true;
     }
@@ -146,7 +146,7 @@ async function main() {
     }
     return false;
   });
-  const result = await runner.run({ env, trajectory: [] });
+  const result = await runner.run({ trajectory: [], env });
   console.log(result.env.observe());
   console.log(JSON.stringify(result.trajectoryDelta, null, 2));
   // console.log(JSON.stringify(result.trajectory, null, 2));
