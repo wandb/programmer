@@ -16,7 +16,7 @@ async function main() {
 
   const env = new SimpleTextAdventure();
 
-  const actor = new LLM(
+  const agent = new LLM(
     "Solve the game",
     "gpt-4o-2024-08-06",
     0.7,
@@ -97,7 +97,7 @@ async function main() {
 
   // const llmTrials = new BestTrial(actor, pick, 3);
 
-  const stepper = new Stepper(actor);
+  const stepper = new Stepper(agent);
 
   // const stepperTrials = new BestTrial(stepper, pick, 3);
 
