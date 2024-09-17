@@ -16,6 +16,8 @@ import { Stepper, SequentialRunner, AgentFn } from "./agent";
 import { AdventureInTheHauntedCastle } from "./complexGame";
 import { Action, ActionSpec, Environment, Observation } from "./environment";
 
+// TODO: clean up containers
+
 const execAsync = promisify(exec);
 
 interface SWEBenchInstance {
@@ -187,7 +189,7 @@ const scoreInstance = async (
     console.error("Error parsing test results:", error);
   } finally {
     // Clean up the temporary file
-    // await fs.promises.unlink(tempOutputFile);
+    await fs.promises.unlink(tempOutputFile);
   }
 
   console.log("DONE");
@@ -197,8 +199,8 @@ const scoreInstance = async (
 
 async function main() {
   const verifiedData = verifiedDataset();
-  //   const instanceId = "django__django-11099";
-  const instanceId = "django__django-11066";
+  const instanceId = "django__django-11099";
+  //   const instanceId = "django__django-11066";
   const instance = getDatasetInstance(verifiedData, instanceId);
   if (!instance) {
     throw new Error(`Instance ${instanceId} not found`);
