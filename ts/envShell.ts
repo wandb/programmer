@@ -118,7 +118,7 @@ export class EnvShell implements Environment<string> {
   async actionListFiles(path: string): Promise<string> {
     const lsCommandResult = await this.ioContext.runCommand(`ls ${path}`);
     if (lsCommandResult.returnCode !== 0) {
-      throw new Error(`Error listing files: ${lsCommandResult.output}`);
+      return `Error listing files: ${lsCommandResult.output}`;
     }
     return lsCommandResult.output;
   }
