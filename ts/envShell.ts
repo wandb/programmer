@@ -2,10 +2,13 @@ import { Action, Environment } from "./environment";
 import fs from "fs";
 import { exec, ExecException } from "child_process";
 import { promisify } from "util";
+import { IOContext } from "./ioContext";
 
 const execAsync = promisify(exec);
 
 export class EnvShell implements Environment<string> {
+  constructor(private readonly ioContext: IOContext) {}
+
   save = () => {
     throw new Error("Not implemented");
   };
@@ -97,7 +100,7 @@ export class EnvShell implements Environment<string> {
 
   async actionReadFile(path: string): Promise<string> {
     try {
-      return await fs.promises.readFile(path, "utf8");
+      return await this.ioContext.readFile(path);
     } catch (err) {
       throw new Error(`Error reading file: ${err}`);
     }
@@ -105,7 +108,7 @@ export class EnvShell implements Environment<string> {
 
   async actionWriteFile(path: string, content: string): Promise<string> {
     try {
-      await fs.promises.writeFile(path, content);
+      await this.ioContext.writeFile(path, content);
       return "File written successfully";
     } catch (err) {
       throw new Error(`Error writing file: ${err}`);
@@ -113,32 +116,15 @@ export class EnvShell implements Environment<string> {
   }
 
   async actionListFiles(path: string): Promise<string> {
-    const files = await fs.promises.readdir(path);
-    return files.join(", ");
+    const lsCommandResult = await this.ioContext.runCommand(`ls ${path}`);
+    if (lsCommandResult.returnCode !== 0) {
+      throw new Error(`Error listing files: ${lsCommandResult.output}`);
+    }
+    return lsCommandResult.output;
   }
 
   async actionRunCommand(command: string): Promise<string> {
-    try {
-      const { stdout, stderr } = await execAsync(command);
-      // The return code is 0 if the command executed successfully
-      return JSON.stringify({
-        stdout,
-        stderr,
-        returnCode: 0,
-      });
-    } catch (error) {
-      // Type assertion to ExecException
-      const execError = error as ExecException & {
-        stdout?: string;
-        stderr?: string;
-      };
-
-      // If an error occurred, the return code is non-zero
-      return JSON.stringify({
-        stdout: execError.stdout || "",
-        stderr: execError.stderr || execError.message,
-        returnCode: execError.code || 1,
-      });
-    }
+    const commandResult = await this.ioContext.runCommand(command);
+    return JSON.stringify(commandResult);
   }
 }

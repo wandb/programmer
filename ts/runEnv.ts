@@ -1,5 +1,10 @@
 import * as readline from "readline";
 import { EnvShell } from "./envShell";
+import {
+  LocalIOContext,
+  RemoteContainerServer,
+  RemoteContainerIOContext,
+} from "./ioContext";
 import { EnvAgent } from "./envAgent";
 import { LLM } from "./llm";
 import { Trajectory } from "./trajectory";
@@ -143,33 +148,42 @@ async function runInteractiveEnvironment<O extends Observation>(
 
 // Example usage
 async function main() {
-  const env = new EnvShell();
-  const agent = new LLM(
-    "Perform tasks",
-    "gpt-4o-2024-08-06",
-    0.7,
-    (inputs: {
-      trajectory: Trajectory;
-      availableActions: ActionSpec[];
-      observation: EnvironmentObservationType<typeof env>;
-    }) => ({
-      messages: [
-        {
-          role: "system",
-          content: "you are an autonomous agent",
-        },
-        ...inputs.trajectory,
-      ],
-      tools: inputs.availableActions.map((actionSpec) => ({
-        type: "function",
-        function: actionSpec,
-      })),
-    })
-  );
-  const stepper = new Stepper(agent);
-  const envAgent = new EnvAgent(stepper, env);
+  //   const remoteContainerServer = new RemoteContainerServer(
+  //     "http://localhost:8000",
+  //     "/testbed"
+  //   );
+  //   const ioContext = await remoteContainerServer.startContainer(
+  //     "sweb.eval.x86_64.django__django-11099"
+  //   );
+
+  const ioContext = new LocalIOContext(".");
+  const env = new EnvShell(ioContext);
+  //   const agent = new LLM(
+  //     "Perform tasks",
+  //     "gpt-4o-2024-08-06",
+  //     0.7,
+  //     (inputs: {
+  //       trajectory: Trajectory;
+  //       availableActions: ActionSpec[];
+  //       observation: EnvironmentObservationType<typeof env>;
+  //     }) => ({
+  //       messages: [
+  //         {
+  //           role: "system",
+  //           content: "you are an autonomous agent",
+  //         },
+  //         ...inputs.trajectory,
+  //       ],
+  //       tools: inputs.availableActions.map((actionSpec) => ({
+  //         type: "function",
+  //         function: actionSpec,
+  //       })),
+  //     })
+  //   );
+  //   const stepper = new Stepper(agent);
+  //   const envAgent = new EnvAgent(stepper, env);
   //   const env = new AdventureInTheHauntedCastle();
-  await runInteractiveEnvironment(envAgent);
+  await runInteractiveEnvironment(env);
 }
 
 main().catch(console.error);
