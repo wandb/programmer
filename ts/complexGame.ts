@@ -205,7 +205,7 @@ export class AdventureInTheHauntedCastle
     return actions;
   };
 
-  act = (actions: Action[]): string[] => {
+  async act(actions: Action[]): Promise<string[]> {
     const responses: string[] = [];
     for (const action of actions) {
       switch (action.name) {
@@ -230,7 +230,7 @@ export class AdventureInTheHauntedCastle
       }
     }
     return responses;
-  };
+  }
 
   private getDescription(): string {
     const room = this.rooms[this.currentRoom];
@@ -483,93 +483,3 @@ function winGame() {
 
 // Run the function to win the game
 // winGame();
-
-async function interactiveGame() {
-  const game = new AdventureInTheHauntedCastle();
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  console.log("Welcome to Adventure in the Haunted Castle!");
-  console.log(game.observe().message);
-
-  const promptUser = (): void => {
-    rl.question("\nWhat do you want to do? ", (input) => {
-      const [actionName, ...args] = input.trim().split(" ");
-      const action = game
-        .availableActions()
-        .find((a) => a.name === actionName.toLowerCase());
-
-      if (!action) {
-        console.log("Invalid action. Try again.");
-        promptUser();
-        return;
-      }
-
-      const parameters: any = {};
-      switch (action.name) {
-        case "move":
-          if (args.length === 0) {
-            console.log("Please specify a direction to move.");
-            promptUser();
-            return;
-          }
-          parameters.direction = args[0];
-          break;
-        case "take":
-          if (args.length === 0) {
-            console.log("Please specify an item to take.");
-            promptUser();
-            return;
-          }
-          parameters.item = args.join(" ");
-          break;
-        case "use":
-          if (args.length === 0) {
-            console.log("Please specify an item to use.");
-            promptUser();
-            return;
-          }
-          parameters.item = args.join(" ");
-          break;
-        case "talk":
-          if (args.length === 0) {
-            console.log("Please specify someone to talk to.");
-            promptUser();
-            return;
-          }
-          parameters.npc = args.join(" ");
-          break;
-        case "examine":
-          if (args.length === 0) {
-            console.log("Please specify something to examine.");
-            promptUser();
-            return;
-          }
-          parameters.target = args.join(" ");
-          break;
-        default:
-          console.log("Unknown action.");
-          promptUser();
-          return;
-      }
-
-      const responses = game.act([{ name: action.name, parameters }]);
-      responses.forEach((response) => console.log(response));
-      console.log(game.observe().message);
-
-      if (game.observe().won) {
-        console.log("Congratulations! You've won the game!");
-        rl.close();
-      } else {
-        promptUser();
-      }
-    });
-  };
-
-  promptUser();
-}
-
-// Run the interactive game
-// interactiveGame();

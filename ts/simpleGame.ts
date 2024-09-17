@@ -110,7 +110,7 @@ export class SimpleTextAdventure
     },
   ];
 
-  act = (actions: Action[]): string[] => {
+  async act(actions: Action[]): Promise<string[]> {
     const actionResponses = [];
     for (const action of actions) {
       switch (action.name) {
@@ -128,7 +128,7 @@ export class SimpleTextAdventure
       }
     }
     return actionResponses;
-  };
+  }
 
   private getDescription(): string {
     const room = this.rooms[this.currentRoom];

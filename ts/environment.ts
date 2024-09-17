@@ -16,7 +16,7 @@ export interface Observation {}
 export interface Environment<O extends Observation> {
   observe: () => O;
   availableActions: () => ActionSpec[];
-  act: (actions: Action[]) => ActionResponse[];
+  act: (actions: Action[]) => Promise<ActionResponse[]>;
   save: () => any;
   load: (state: any) => Environment<O>;
 }
