@@ -7,6 +7,7 @@ import {
   EnvironmentObservationType,
 } from "./environment";
 import { SimpleTextAdventure } from "./simpleGame";
+import { AdventureInTheHauntedCastle } from "./complexGame";
 import { BestOfNTrials } from "./strategy";
 import { z } from "zod";
 import { init } from "weave";
@@ -14,7 +15,7 @@ import { init } from "weave";
 async function main() {
   await init("programmerjs-dev1");
 
-  const env = new SimpleTextAdventure();
+  const env = new AdventureInTheHauntedCastle();
 
   const agent = new LLM(
     "Solve the game",
@@ -23,7 +24,7 @@ async function main() {
     (inputs: {
       trajectory: Trajectory;
       availableActions: ActionSpec[];
-      observation: EnvironmentObservationType<SimpleTextAdventure>;
+      observation: EnvironmentObservationType<AdventureInTheHauntedCastle>;
     }) => ({
       messages: [
         {
@@ -105,7 +106,7 @@ async function main() {
 
   const runnerTrials = new BestOfNTrials(runner, chooseFromTrials, 5);
 
-  const runnerRunner = new SequentialRunner(runnerTrials, 5, stopFn);
+  const runnerRunner = new SequentialRunner(runnerTrials, 10, stopFn);
 
   const result = await runnerRunner.run({ trajectory: [], env });
 
