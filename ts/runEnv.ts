@@ -1,5 +1,10 @@
 import * as readline from "readline";
 import { EnvShell } from "./envShell";
+import { EnvAgent } from "./envAgent";
+import { LLM } from "./llm";
+import { Trajectory } from "./trajectory";
+import { EnvironmentObservationType } from "./environment";
+import { Stepper } from "./agent";
 import { AdventureInTheHauntedCastle } from "./complexGame";
 import { Action, ActionSpec, Environment, Observation } from "./environment";
 
@@ -123,16 +128,8 @@ async function runInteractiveEnvironment<O extends Observation>(
     const action = promptUser(input, availableActions);
 
     if (action) {
-      try {
-        const responses = await env.act([action]);
-        responses.forEach((response) => console.log(response));
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error executing action:", error.message);
-        } else {
-          console.error("An unknown error occurred");
-        }
-      }
+      const responses = await env.act([action]);
+      responses.forEach((response) => console.log(response));
     }
 
     if (stopFn && stopFn(env)) {
@@ -146,9 +143,35 @@ async function runInteractiveEnvironment<O extends Observation>(
 
 // Example usage
 async function main() {
-  //   const env = new EnvShell();
-  const env = new AdventureInTheHauntedCastle();
-  await runInteractiveEnvironment(env);
+  const env = new EnvShell();
+  const agent = new LLM(
+    "Perform tasks",
+    "gpt-4o-2024-08-06",
+    0.7,
+    (inputs: {
+      trajectory: Trajectory;
+      availableActions: ActionSpec[];
+      observation: EnvironmentObservationType<typeof env>;
+    }) => ({
+      messages: [
+        {
+          role: "system",
+          content: "you are an autonomous agent",
+        },
+        ...inputs.trajectory,
+      ],
+      tools: inputs.availableActions.map((actionSpec) => ({
+        type: "function",
+        function: actionSpec,
+      })),
+    })
+  );
+  const stepper = new Stepper(agent);
+  const envAgent = new EnvAgent(stepper, env);
+  //   const env = new AdventureInTheHauntedCastle();
+  await runInteractiveEnvironment(envAgent);
 }
 
 main().catch(console.error);
+
+// Idea: should I have an "AgentEnv" that wraps an Agent and an Environment?

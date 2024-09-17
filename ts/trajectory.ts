@@ -7,7 +7,7 @@ type TrajectoryMessageAgent = AgentResponse;
 
 type TrajectoryMessageUser = {
   role: "user";
-  message: string;
+  content: string;
 };
 
 type TrajectoryMessageActionResponse = {

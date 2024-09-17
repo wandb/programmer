@@ -23,7 +23,7 @@ export class EnvShell implements Environment<string> {
         parameters: {
           type: "object",
           properties: {
-            item: { type: "string" },
+            path: { type: "string" },
           },
           required: ["path"],
         },
@@ -34,18 +34,21 @@ export class EnvShell implements Environment<string> {
         parameters: {
           type: "object",
           properties: {
-            item: { type: "string" },
+            path: { type: "string" },
+            content: { type: "string" },
           },
           required: ["path", "content"],
         },
       },
       {
         name: "list_files",
-        description: "List files in the current directory",
+        description: "List files in the directory at the given path",
         parameters: {
           type: "object",
-          properties: {},
-          required: [],
+          properties: {
+            path: { type: "string" },
+          },
+          required: ["path"],
         },
       },
       {
@@ -63,7 +66,6 @@ export class EnvShell implements Environment<string> {
   };
 
   async act(actions: Action[]): Promise<string[]> {
-    console.log(actions);
     const results: string[] = [];
 
     for (const action of actions) {
@@ -80,7 +82,7 @@ export class EnvShell implements Environment<string> {
           );
           break;
         case "list_files":
-          results.push(await this.actionListFiles());
+          results.push(await this.actionListFiles(action.parameters.path));
           break;
         case "run_command":
           results.push(await this.actionRunCommand(action.parameters.command));
@@ -110,8 +112,8 @@ export class EnvShell implements Environment<string> {
     }
   }
 
-  async actionListFiles(): Promise<string> {
-    const files = await fs.promises.readdir(".");
+  async actionListFiles(path: string): Promise<string> {
+    const files = await fs.promises.readdir(path);
     return files.join(", ");
   }
 

@@ -21,7 +21,7 @@ interface Agent<O extends Observation>
   }) => Promise<AgentResponse>;
 }
 
-type AgentFn<O extends Observation> = Fn<
+export type AgentFn<O extends Observation> = Fn<
   { trajectory: Trajectory; env: Environment<O> },
   { trajectoryDelta: Trajectory; env: Environment<O> }
 >;
@@ -51,21 +51,22 @@ export class Stepper<O extends Observation>
     const { trajectory, env } = input;
     const availableActions = env.availableActions();
     const observation = env.observe();
-    console.log("observation", observation);
     const agentResponses = await this.agent.trials(n, {
       availableActions,
       observation,
       trajectory,
     });
 
-    return agentResponses.map((agentResponse) => {
-      // clone
-      const envState = env.save();
-      let newEnv = env.load(envState);
+    return Promise.all(
+      agentResponses.map(async (agentResponse) => {
+        // clone
+        const envState = env.save();
+        let newEnv = env.load(envState);
 
-      const trajectoryDelta = this.stepEnv(agentResponse, newEnv);
-      return { env: newEnv, trajectoryDelta };
-    });
+        const trajectoryDelta = await this.stepEnv(agentResponse, newEnv);
+        return { env: newEnv, trajectoryDelta };
+      })
+    );
   }
 
   async run(input: {
@@ -75,20 +76,18 @@ export class Stepper<O extends Observation>
     const { trajectory, env } = input;
     const availableActions = env.availableActions();
     const observation = env.observe();
-    console.log("observation", observation);
     const agentResponse = await this.agent.run({
       availableActions,
       observation,
       trajectory,
     });
 
-    let trajectoryDelta = this.stepEnv(agentResponse, env);
+    let trajectoryDelta = await this.stepEnv(agentResponse, env);
 
     return { env, trajectoryDelta };
   }
 
-  private stepEnv(agentResponse: AgentResponse, env: Environment<O>) {
-    console.log("agentResponse", JSON.stringify(agentResponse, null, 2));
+  private async stepEnv(agentResponse: AgentResponse, env: Environment<O>) {
     let trajectoryDelta: Trajectory = [agentResponse];
 
     if (agentResponse.tool_calls) {
@@ -97,9 +96,9 @@ export class Stepper<O extends Observation>
         name: toolCall.function.name,
         parameters: JSON.parse(toolCall.function.arguments),
       }));
+      console.log("actions", actions);
 
-      const actionResponses = env.act(actions);
-      console.log("actionResponses", JSON.stringify(actionResponses, null, 2));
+      const actionResponses = await env.act(actions);
 
       trajectoryDelta = trajectoryAddActionResponses(
         trajectoryDelta,
