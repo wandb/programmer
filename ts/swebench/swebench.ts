@@ -256,7 +256,6 @@ async function main() {
       };
       const runner = new SequentialRunner(stepper, 10, stopFn);
       const result = await runInstance(remoteContainerServer, instance, runner);
-      console.log("SCORING");
       const scoreResult = await scoreInstance(
         remoteContainerServer,
         instance,
