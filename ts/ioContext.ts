@@ -145,4 +145,16 @@ export class RemoteContainerServer {
       containerId
     );
   }
+
+  async withContainer<T>(
+    imageId: string,
+    fn: (ioContext: RemoteContainerIOContext) => Promise<T>
+  ): Promise<T> {
+    const ioContext = await this.startContainer(imageId);
+    try {
+      return await fn(ioContext);
+    } finally {
+      await ioContext.stopContainer();
+    }
+  }
 }

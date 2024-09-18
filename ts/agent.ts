@@ -96,7 +96,6 @@ export class Stepper<O extends Observation>
         name: toolCall.function.name,
         parameters: JSON.parse(toolCall.function.arguments),
       }));
-      console.log("actions", actions);
 
       const actionResponses = await env.act(actions);
 

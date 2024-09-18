@@ -4,9 +4,7 @@ import { exec, ExecException } from "child_process";
 import { promisify } from "util";
 import { IOContext } from "./ioContext";
 
-const execAsync = promisify(exec);
-
-export class EnvShell implements Environment<string> {
+export class EnvShellPatch implements Environment<string> {
   constructor(
     private readonly ioContext: IOContext,
     private readonly actionWhitelist?: string[]
@@ -35,15 +33,15 @@ export class EnvShell implements Environment<string> {
         },
       },
       {
-        name: "write_file",
-        description: "Write file contents as a string",
+        name: "apply_patch",
+        description: "Apply a patch in the given directory",
         parameters: {
           type: "object",
           properties: {
-            path: { type: "string" },
-            content: { type: "string" },
+            directory: { type: "string" },
+            unified_diff: { type: "string" },
           },
-          required: ["path", "content"],
+          required: ["directory", "unified_diff"],
         },
       },
       {
@@ -84,9 +82,9 @@ export class EnvShell implements Environment<string> {
         case "read_file":
           results.push(await this.actionReadFile(action.parameters.path));
           break;
-        case "write_file":
+        case "apply_patch":
           results.push(
-            await this.actionWriteFile(
+            await this.actionApplyPatch(
               action.parameters.path,
               action.parameters.content
             )
@@ -114,12 +112,35 @@ export class EnvShell implements Environment<string> {
     }
   }
 
-  async actionWriteFile(path: string, content: string): Promise<string> {
+  async actionApplyPatch(
+    directory: string,
+    unified_diff: string
+  ): Promise<string> {
     try {
-      await this.ioContext.writeFile(path, content);
-      return "File written successfully";
+      // Generate a random file name
+      const randomFileName = `patch_${Math.random()
+        .toString(36)
+        .substring(7)}.diff`;
+      const tempFilePath = `/tmp/${randomFileName}`;
+
+      // Write the unified diff to the temporary file
+      await this.ioContext.writeFile(tempFilePath, unified_diff);
+
+      // Run the patch command
+      const patchCommand = `patch -p1 -d ${directory} < ${tempFilePath}`;
+      const patchResult = await this.ioContext.runCommand(patchCommand);
+
+      // Check if the patch was applied successfully
+      if (patchResult.returnCode !== 0) {
+        throw new Error(`Patch application failed: ${patchResult.output}`);
+      }
+
+      // Clean up the temporary file
+      await this.ioContext.runCommand(`rm ${tempFilePath}`);
+
+      return "Patch applied successfully";
     } catch (err) {
-      throw new Error(`Error writing file: ${err}`);
+      throw new Error(`Error applying patch: ${err}`);
     }
   }
 
