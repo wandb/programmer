@@ -48,10 +48,11 @@ class DockerContainerManager:
         file_path = os.path.join("/", file_path)
         container = self._get_container(container_id)
         tarstream = BytesIO()
+        encoded_content = file_content.encode("utf-8")
         with tarfile.open(fileobj=tarstream, mode="w") as tar:
             tarinfo = tarfile.TarInfo(name=os.path.basename(file_path))
-            tarinfo.size = len(file_content)
-            tar.addfile(tarinfo, BytesIO(file_content.encode("utf-8")))
+            tarinfo.size = len(encoded_content)
+            tar.addfile(tarinfo, BytesIO(encoded_content))
         tarstream.seek(0)
 
         loop = asyncio.get_event_loop()
