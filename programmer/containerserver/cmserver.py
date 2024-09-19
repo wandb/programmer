@@ -84,9 +84,13 @@ class DockerContainerManager:
     async def stop_container(self, container_id: str, delete: bool = False):
         container = self._get_container(container_id)
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(self.executor, container.stop)
-        if delete:
-            await loop.run_in_executor(self.executor, container.remove)
+
+        def stop_and_remove():
+            container.stop(timeout=1)
+            if delete:
+                container.remove()
+
+        await loop.run_in_executor(self.executor, stop_and_remove)
 
 
 # FastAPI setup
