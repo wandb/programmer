@@ -122,22 +122,16 @@ class FilePathRequest(BaseModel):
 
 @app.post("/container/start")
 async def start_container(request: StartContainerRequest):
-    try:
-        container_id = await container_manager.start_container(request.image_id)
-        return {"container_id": container_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    container_id = await container_manager.start_container(request.image_id)
+    return {"container_id": container_id}
 
 
 @app.post("/container/run")
 async def run_command(request: CommandRequest):
-    try:
-        result = await container_manager.run_command(
-            request.container_id, request.workdir, request.command
-        )
-        return {"exit_code": result["exit_code"], "output": result["output"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    result = await container_manager.run_command(
+        request.container_id, request.workdir, request.command
+    )
+    return {"exit_code": result["exit_code"], "output": result["output"]}
 
 
 @app.post("/container/write_file")
@@ -149,8 +143,6 @@ async def write_file(request: FileRequest):
         return {"status": "file written"}
     except NotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/container/read_file")
@@ -162,17 +154,12 @@ async def read_file(request: FilePathRequest):
         return {"file_content": file_content}
     except NotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/container/stop")
 async def stop_container(request: StopContainerRequest):
-    try:
-        await container_manager.stop_container(request.container_id, request.delete)
-        return {"status": "container stopped"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    await container_manager.stop_container(request.container_id, request.delete)
+    return {"status": "container stopped"}
 
 
 # To run the server, use:
